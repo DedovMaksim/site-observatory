@@ -1,0 +1,20 @@
+[Unit]
+Description=Site Observatory monitoring
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=observatory
+Group=observatory
+WorkingDirectory=/opt/site-observatory
+EnvironmentFile=/etc/site-observatory.env
+ExecStart=/opt/site-observatory/site-observatory
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/site-observatory
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target
