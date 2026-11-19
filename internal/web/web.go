@@ -7,6 +7,7 @@ import (
 	"errors"
 	"example.com/site-observatory/internal/auth"
 	"example.com/site-observatory/internal/monitor"
+	"example.com/site-observatory/internal/notify"
 	"example.com/site-observatory/internal/storage"
 	"fmt"
 	"html/template"
@@ -25,6 +26,7 @@ type Server struct {
 	DB        *storage.DB
 	Auth      *auth.Manager
 	Checker   monitor.Checker
+	Notify    *notify.Telegram
 	templates *template.Template
 	mux       *http.ServeMux
 }
@@ -36,9 +38,11 @@ type view struct {
 	Incidents                   []storage.Incident
 	Up, Down, Unknown           int
 	Editing                     bool
+	Telegram                    storage.TelegramSettings
+	TokenConfigured             bool
 }
 
-func New(db *storage.DB, a *auth.Manager, c monitor.Checker) (*Server, error) {
+func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
 	t, e := template.New("base").Funcs(template.FuncMap{"percent": func(x, y int) string {
 		if y == 0 {
 			return "0"
@@ -53,7 +57,7 @@ func New(db *storage.DB, a *auth.Manager, c monitor.Checker) (*Server, error) {
 	if e != nil {
 		return nil, e
 	}
-	s := &Server{DB: db, Auth: a, Checker: c, templates: t, mux: http.NewServeMux()}
+	s := &Server{DB: db, Auth: a, Checker: c, Notify: n, templates: t, mux: http.NewServeMux()}
 	s.routes()
 	return s, nil
 }
@@ -79,6 +83,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /monitors/{id}/edit", s.require(s.update))
 	s.mux.HandleFunc("POST /monitors/{id}/delete", s.require(s.delete))
 	s.mux.HandleFunc("GET /incidents", s.require(s.incidents))
+	s.mux.HandleFunc("GET /settings", s.require(s.settings))
+	s.mux.HandleFunc("POST /settings/telegram", s.require(s.saveTelegram))
+	s.mux.HandleFunc("POST /settings/telegram/test", s.require(s.testTelegram))
 	s.mux.HandleFunc("GET /api/status", s.require(s.apiStatus))
 	s.mux.HandleFunc("POST /logout", s.require(s.logout))
 }
