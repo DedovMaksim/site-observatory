@@ -1,0 +1,44 @@
+name: Go CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - run: go mod download
+      - run: go vet ./...
+      - run: go test -race ./...
+      - run: go build -o /tmp/site-observatory ./cmd/server
+  release-artifacts:
+    runs-on: ubuntu-latest
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - {goos: linux, goarch: amd64, extension: ""}
+          - {goos: linux, goarch: arm64, extension: ""}
+          - {goos: windows, goarch: amd64, extension: ".exe"}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go mod download
+      - run: mkdir -p dist
+      - run: go build -trimpath -o dist/site-observatory-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.extension }} ./cmd/server
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-observatory-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*

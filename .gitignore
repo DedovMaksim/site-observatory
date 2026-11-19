@@ -1,0 +1,8 @@
+.env
+/data/
+*.db
+*.db-shm
+*.db-wal
+site-observatory
+site-observatory.exe
+*.zip
