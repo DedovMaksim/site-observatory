@@ -7,6 +7,7 @@ import (
 	"example.com/site-observatory/internal/auth"
 	"example.com/site-observatory/internal/config"
 	"example.com/site-observatory/internal/monitor"
+	"example.com/site-observatory/internal/notify"
 	"example.com/site-observatory/internal/scheduler"
 	"example.com/site-observatory/internal/storage"
 	"example.com/site-observatory/internal/web"
@@ -50,13 +51,16 @@ func main() {
 		log.Fatal(e)
 	}
 	checker := monitor.Checker{AllowPrivate: cfg.AllowPrivateTargets}
-	app, e := web.New(db, mgr, checker)
+	telegram, e := notify.New(db, cfg.DataDir)
+	if e != nil { log.Fatal(e) }
+	app, e := web.New(db, mgr, checker, telegram)
 	if e != nil {
 		log.Fatal(e)
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	go scheduler.New(db, checker).Run(ctx)
+	go telegram.Run(ctx)
 	srv := &http.Server{Addr: cfg.Addr, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
 		<-ctx.Done()
