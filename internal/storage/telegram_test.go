@@ -3,6 +3,7 @@ package storage
 import (
  "context"
  "path/filepath"
+ "strings"
  "testing"
  "time"
 )
@@ -30,5 +31,5 @@ func TestTelegramOutboxLifecycle(t *testing.T) {
   if err!=nil{t.Fatal(err)}
  }
  recovered,err:=db.NextTelegramMessage(ctx);if err!=nil{t.Fatal(err)}
- if recovered.ID==first.ID {t.Fatal("expected new recovery notification")}
+ if !strings.Contains(recovered.Text,"восстановлен") {t.Fatalf("expected recovery notification, got %q",recovered.Text)}
 }
