@@ -82,3 +82,26 @@ The session design is stateless: logging out deletes the browser cookie but does
 v0.2: Telegram notifications, SSL certificate expiry and DNS checks. v0.3: public status pages and export/API. v0.4: remote agents. Before public 1.0 release: add API/access hardening, login rate limiting, audit logging, HTMX partial refresh (or keep progressive native JS), e2e tests, packaging and backup restore drills.
 
 License: not yet selected; add LICENSE before publishing as open source.
+
+## Telegram Alerts (v0.2 beta)
+
+Open **Settings** in the admin dashboard. Enter the bot token from @BotFather
+and a numeric Telegram Chat ID, choose which transitions should trigger messages,
+then save and click **Send test message**.
+
+The bot must have been started by the recipient (or added to the target group).
+Notifications are enqueued only when a monitor changes to **DOWN** after three
+consecutive failed checks or recovers to **UP** after two successful checks.
+The message worker retries delivery without blocking HTTP monitoring.
+
+Bot tokens are stored encrypted (AES-256-GCM) in SQLite, never rendered back in
+the browser. The encryption key is generated on first startup as
+`DATA_DIR/telegram.key` and must be kept alongside the SQLite backup.
+**Losing that key means existing bot tokens cannot be decrypted.** Both
+`observatory.db` and `telegram.key` are secrets; never commit them to Git.
+Stop the service before copying its data directory for backup, or use
+SQLite's backup API for an online snapshot. Protect the web interface with HTTPS
+and restrict admin access.
+
+Changes to Telegram settings are made in the web interface; no Telegram bot
+token is required in `.env`.

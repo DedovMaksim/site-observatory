@@ -44,7 +44,9 @@ func Open(path string) (*DB, error) {
 		return nil, err
 	}
 	s := &DB{db}
-	return s, s.Migrate()
+	if err := s.Migrate(); err != nil { db.Close(); return nil,err }
+ if err := s.MigrateTelegram(); err != nil { db.Close(); return nil,err }
+ return s,nil
 }
 func (d *DB) Migrate() error {
 	_, err := d.Exec(`
@@ -161,9 +163,9 @@ func (d *DB) Record(ctx context.Context, id int64, c Check) error {
 		return e
 	}
 	defer tx.Rollback()
-	var status string
+	var status, name, targetURL string
 	var failures, successes int
-	e = tx.QueryRowContext(ctx, `SELECT status,failures,successes FROM monitors WHERE id=?`, id).Scan(&status, &failures, &successes)
+	e = tx.QueryRowContext(ctx, `SELECT status,failures,successes,name,url FROM monitors WHERE id=?`, id).Scan(&status, &failures, &successes, &name, &targetURL)
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil
 	}
@@ -193,12 +195,17 @@ func (d *DB) Record(ctx context.Context, id int64, c Check) error {
 		return e
 	}
 	if next == "DOWN" && status != "DOWN" {
+        msg := fmt.Sprintf("🔴 Сайт недоступен: %s\n%s\nПричина: %s\nВремя (UTC): %s",name,targetURL,c.Error,c.CheckedAt)
+        if c.Error=="" {msg=fmt.Sprintf("🔴 Сайт недоступен: %s\n%s\nHTTP: %d\nВремя (UTC): %s",name,targetURL,c.Code,c.CheckedAt)}
+        if e = EnqueueTelegram(ctx,tx,"DOWN",msg); e != nil { return e }
 		_, e = tx.ExecContext(ctx, `INSERT INTO incidents(monitor_id,started_at,reason) VALUES(?,?,?)`, id, c.CheckedAt, c.Error)
 		if e != nil {
 			return e
 		}
 	}
 	if next == "UP" && status == "DOWN" {
+        msg:=fmt.Sprintf("🟢 Сайт восстановлен: %s\n%s\nHTTP: %d\nВремя (UTC): %s",name,targetURL,c.Code,c.CheckedAt)
+        if e = EnqueueTelegram(ctx,tx,"UP",msg); e != nil { return e }
 		_, e = tx.ExecContext(ctx, `UPDATE incidents SET ended_at=? WHERE monitor_id=? AND ended_at=''`, c.CheckedAt, id)
 		if e != nil {
 			return e
