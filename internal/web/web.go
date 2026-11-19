@@ -120,7 +120,11 @@ func (s *Server) require(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, v view) {
-	v.CSRF = s.Auth.CSRF(s.token(r))
+	if session := s.token(r); session != "" {
+		v.CSRF = s.Auth.CSRF(session)
+	} else {
+		v.CSRF = ""
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if e := s.templates.ExecuteTemplate(w, page, v); e != nil {
 		log.Printf("render %s: %v", page, e)
