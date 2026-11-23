@@ -3,6 +3,7 @@ package storage
 import (
  "context"
  "database/sql"
+ "strconv"
  "time"
 )
 
@@ -83,3 +84,31 @@ func (d *DB) LastLatencies(id int64,limit int)([]int64,error){
  return list,rows.Err()
 }
 var _=sql.ErrNoRows
+
+type DiagnosticProblem struct {
+ MonitorID int64
+ Name string
+ Category string
+ Detail string
+}
+func (d *DB) DiagnosticProblems()([]DiagnosticProblem,error){
+ rows,err:=d.Query(`
+ SELECT m.id,m.name,d.tls_status,d.tls_days,d.dns_changed,d.seo_status
+ FROM diagnostic_results d JOIN monitors m ON m.id=d.monitor_id
+ WHERE m.enabled=1 AND (d.tls_status IN ('EXPIRING','ERROR') OR d.dns_changed=1 OR d.seo_status IN ('WARNING','ERROR')) 
+ ORDER BY m.name LIMIT 50`)
+ if err!=nil{return nil,err}
+ defer rows.Close()
+ out:=[]DiagnosticProblem{}
+ for rows.Next(){
+  var id int64;var name,ssl,seo string;var days,changed int
+  if err=rows.Scan(&id,&name,&ssl,&days,&changed,&seo);err!=nil{return nil,err}
+  if ssl=="EXPIRING" {out=append(out,DiagnosticProblem{id,name,"SSL","Сертификат истекает через "+itoa(days)+" дн."})}
+  if ssl=="ERROR" {out=append(out,DiagnosticProblem{id,name,"SSL","Ошибка TLS-сертификата"})}
+  if changed==1 {out=append(out,DiagnosticProblem{id,name,"DNS","Обнаружено изменение IP-адресов"})}
+  if seo=="WARNING" {out=append(out,DiagnosticProblem{id,name,"SEO","Отсутствует title или обнаружен noindex"})}
+  if seo=="ERROR" {out=append(out,DiagnosticProblem{id,name,"SEO","Не удалось проверить метаданные страницы"})}
+ }
+ return out,rows.Err()
+}
+func itoa(n int)string{return strconv.Itoa(n)}
