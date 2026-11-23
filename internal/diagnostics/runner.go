@@ -13,11 +13,12 @@ type Runner struct {
  DB *storage.DB
  limit chan struct{}
  wait sync.WaitGroup
+ last map[int64]time.Time
 }
-func NewRunner(db *storage.DB)*Runner{return &Runner{DB:db,limit:make(chan struct{},4)}}
+func NewRunner(db *storage.DB)*Runner{return &Runner{DB:db,limit:make(chan struct{},4),last:make(map[int64]time.Time)}}
 func (r *Runner) Run(ctx context.Context) {
  r.scan(ctx)
- ticker:=time.NewTicker(time.Hour)
+ ticker:=time.NewTicker(time.Minute)
  defer ticker.Stop()
  for {
   select {case <-ctx.Done():r.wait.Wait();return
@@ -29,7 +30,9 @@ func (r *Runner) scan(ctx context.Context){
  if err!=nil {log.Printf("diagnostics list: %v",err);return}
  for _,m:=range monitors {
   if !m.Enabled {continue}
+  if last:=r.last[m.ID]; !last.IsZero() && time.Since(last)<time.Hour {continue}
   select {case <-ctx.Done():return;case r.limit<-struct{}{}:
+   r.last[m.ID]=time.Now()
    r.wait.Add(1)
    go func(m storage.Monitor){
     defer r.wait.Done()
