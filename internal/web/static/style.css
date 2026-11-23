@@ -2,3 +2,10 @@
 
 .notice{background:#19875422;color:var(--green);border:1px solid #19875466;padding:12px;border-radius:8px;overflow-wrap:anywhere}
 .formcard hr{width:100%;border:0;border-top:1px solid var(--border);margin:22px 0}
+
+.latency-chart{display:block;width:100%;height:170px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin:10px 0 16px}
+.diagnostic-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:16px}
+.diagnostic-grid section{background:var(--bg);padding:15px;border:1px solid var(--border);border-radius:8px;min-width:0}
+.diagnostic-grid h3{margin:0 0 10px;font-size:15px}
+.break-text{overflow-wrap:anywhere}
+@media(max-width:740px){.diagnostic-grid{grid-template-columns:1fr}}
