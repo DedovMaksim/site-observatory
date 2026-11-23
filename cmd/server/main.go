@@ -6,6 +6,7 @@ import (
 	"errors"
 	"example.com/site-observatory/internal/auth"
 	"example.com/site-observatory/internal/config"
+	"example.com/site-observatory/internal/diagnostics"
 	"example.com/site-observatory/internal/monitor"
 	"example.com/site-observatory/internal/notify"
 	"example.com/site-observatory/internal/scheduler"
@@ -60,6 +61,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	go scheduler.New(db, checker).Run(ctx)
+	go diagnostics.NewRunner(db).Run(ctx)
 	go telegram.Run(ctx)
 	srv := &http.Server{Addr: cfg.Addr, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
