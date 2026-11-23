@@ -2,6 +2,7 @@ package web
 
 import (
 	"database/sql"
+	"math"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -40,6 +41,10 @@ type view struct {
 	Editing                     bool
 	Telegram                    storage.TelegramSettings
 	TokenConfigured             bool
+	Diagnostic storage.Diagnostic
+	HasDiagnostic bool
+	Stats storage.UptimeStats
+	GraphPoints string
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -120,7 +125,7 @@ func (s *Server) require(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, v view) {
-	v.CSRF = s.Auth.CSRF(s.token(r))
+	if session := s.token(r); session != "" { v.CSRF = s.Auth.CSRF(session) } else { v.CSRF = "" }
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if e := s.templates.ExecuteTemplate(w, page, v); e != nil {
 		log.Printf("render %s: %v", page, e)
@@ -248,7 +253,11 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, e.Error(), 500)
 		return
 	}
-	s.render(w, r, "detail.html", view{Title: m.Name, Monitor: m, Checks: checks, Incidents: incidents})
+	v := view{Title: m.Name, Monitor: m, Checks: checks, Incidents: incidents}
+ if diag, err := s.DB.Diagnostic(m.ID); err == nil {v.Diagnostic=diag;v.HasDiagnostic=true}
+ if stats, err := s.DB.Uptime(m.ID,time.Now().Add(-24*time.Hour)); err == nil {v.Stats=stats}
+ if latencies,err:=s.DB.LastLatencies(m.ID,100);err==nil {v.GraphPoints=latencyGraph(latencies)}
+ s.render(w,r,"detail.html",v)
 }
 func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
 	m, ok := s.fetch(w, r)
@@ -317,3 +326,18 @@ func (s *Server) apiStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 var _ = sql.ErrNoRows
+
+func latencyGraph(series []int64)string {
+ if len(series)==0{return ""}
+ maxVal:=int64(1)
+ for _,v:=range series {if v>maxVal {maxVal=v}}
+ points:=make([]string,0,len(series))
+ for i,v:=range series {
+  x:=0
+  if len(series)>1 {x=int(math.Round(float64(i)*500/float64(len(series)-1)))}
+  y:=100-int(math.Round(float64(v)*95/float64(maxVal)))
+  if y<0 {y=0}
+  points=append(points,strconv.Itoa(x)+","+strconv.Itoa(y))
+ }
+ return strings.Join(points," ")
+}
