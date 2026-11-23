@@ -105,3 +105,28 @@ and restrict admin access.
 
 Changes to Telegram settings are made in the web interface; no Telegram bot
 token is required in `.env`.
+
+## Diagnostics (v0.3 beta)
+
+The detail page now includes:
+
+- **SSL/TLS:** certificate verification (trusted chain and hostname), UTC expiry, days left and a warning when fewer than 30 days remain. HTTP-only monitors show N/A.
+- **DNS:** public A/AAAA addresses and a change indicator relative to the preceding diagnostic snapshot.
+- **SEO:** bounded HTTP GET (max 512 KiB of decoded body) to extract the first HTML title, rel=canonical and robots meta. Missing title or meta noindex is shown as a warning.
+- **Statistics:** rolling 24-hour sample-based uptime percentage and mean latency, plus an SVG graph for the most recent 100 stored HTTP checks.
+
+Diagnostics are run separately from uptime checks. They start on application launch,
+revisit enabled monitors approximately hourly, and discover newly added monitors
+on the next minute tick. Diagnostic failures do **not** change the monitor's
+UP/DOWN status; they are displayed on its detail page. Certificate expiry,
+DNS and SEO diagnostics currently appear **in the web UI only**; Telegram alert
+delivery for these conditions is reserved for a later iteration. DNS monitoring
+in this release covers resolved A/AAAA addresses, not MX/NS/TXT or domain expiry.
+
+The SEO parser is intentionally lightweight, not a full browser or JavaScript
+renderer. It will not detect client-side changes rendered by JavaScript.
+
+This beta is intended for local testing before deployment to a public VDS.
+An authenticated administrator can initiate checks of external sites. The
+diagnostic HTTP and TLS clients block private/loopback addresses and re-resolve
+redirect destinations. Review network egress restrictions in production.
