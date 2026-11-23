@@ -43,6 +43,7 @@ type view struct {
 	TokenConfigured             bool
 	Diagnostic storage.Diagnostic
 	HasDiagnostic bool
+	Problems []storage.DiagnosticProblem
 	Stats storage.UptimeStats
 	GraphPoints string
 }
@@ -178,6 +179,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 			v.Unknown++
 		}
 	}
+	if problems,err:=s.DB.DiagnosticProblems();err==nil {v.Problems=problems}
 	s.render(w, r, "dashboard.html", v)
 }
 func (s *Server) newForm(w http.ResponseWriter, r *http.Request) {
