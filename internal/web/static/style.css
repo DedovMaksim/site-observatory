@@ -51,3 +51,13 @@
 .domain-manual button{padding:7px 10px}
 .domain-error{color:var(--red);overflow-wrap:anywhere;max-width:260px}
 .domain-detail .cardhead{margin-bottom:14px}
+
+/* v0.4 domain expiry states */
+.domain-status{display:inline-flex;align-items:center;gap:7px;font-weight:700;white-space:nowrap}
+.domain-status:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:currentColor}
+.domain-safe{color:var(--green)}
+.domain-warning{color:#e7b65a}
+.domain-critical{color:var(--red)}
+.domain-unknown{color:var(--muted)}
+.domain-test-form{margin-top:8px}
+.domain-test-button{font-size:12px;padding:6px 10px;color:var(--accent)}
