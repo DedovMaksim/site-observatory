@@ -11,6 +11,7 @@ import (
  "net/url"
  "sort"
  "strings"
+ "sync"
  "time"
 )
 
@@ -60,7 +61,7 @@ func ExpiryFromEvents(events []Event)(time.Time,string,error){
  return time.Time{},"",errors.New("RDAP did not return a registration expiration event")
 }
 
-type Client struct { HTTP *http.Client; BootstrapURL string }
+type Client struct { HTTP *http.Client; BootstrapURL string; mu sync.Mutex; cached Registry; cachedAt time.Time }
 func NewClient()*Client{
  return &Client{HTTP:&http.Client{Timeout:12*time.Second,CheckRedirect:func(*http.Request,[]*http.Request)error{return http.ErrUseLastResponse}},BootstrapURL:"https://data.iana.org/rdap/dns.json"}
 }
@@ -101,8 +102,14 @@ func (c *Client) Lookup(ctx context.Context,domain string)(LookupResult,error){
  client:=c.HTTP;if client==nil{client=NewClient().HTTP}
  bootstrap:=c.BootstrapURL
  if bootstrap==""{bootstrap="https://data.iana.org/rdap/dns.json"}
- var registry Registry
- if err:=readJSON(ctx,client,bootstrap,1024*1024,&registry);err!=nil{return LookupResult{},fmt.Errorf("RDAP bootstrap: %w",err)}
+ c.mu.Lock()
+ registry:=c.cached
+ if c.cachedAt.IsZero() || time.Since(c.cachedAt)>24*time.Hour {
+  if err:=readJSON(ctx,client,bootstrap,1024*1024,&registry);err!=nil {c.mu.Unlock();return LookupResult{},fmt.Errorf("RDAP bootstrap: %w",err)}
+  c.cached=registry
+  c.cachedAt=time.Now()
+ }
+ c.mu.Unlock()
  base,err:=baseForDomain(domain,registry);if err!=nil{return LookupResult{},err}
  var r Registration
  endpoint:=base+"/domain/"+url.PathEscape(domain)
