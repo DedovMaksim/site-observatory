@@ -39,3 +39,9 @@
 .monitor-details summary:hover{text-decoration:underline}
 .monitor-details[open] summary{margin-bottom:8px}
 @media(max-width:740px){.monitor-metrics{grid-template-columns:1fr}.diagnostic-grid{grid-template-columns:1fr}.monitor-heading .actions{margin-left:0}.cardhead{gap:8px;flex-wrap:wrap}.monitor-overview .latency-chart{height:160px}}
+
+/* Collapsible incident history: actionable status remains visible. */
+.monitor-incidents .cardhead h2{margin-bottom:0}
+.monitor-incidents .incident-status-ok{color:var(--green);margin:13px 0}
+.monitor-incidents .incident-active-summary{color:var(--red);border-left:3px solid var(--red);padding:6px 12px;background:color-mix(in srgb,var(--red) 8%,transparent);margin:14px 0}
+.monitor-incidents .monitor-details{margin-top:12px}
