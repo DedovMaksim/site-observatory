@@ -47,6 +47,10 @@ type view struct {
 	Problems []storage.DiagnosticProblem
 	Stats storage.UptimeStats
 	GraphPoints string
+	Domains []storage.DomainExpiry
+	Domain storage.DomainExpiry
+	HasDomain bool
+	DomainWarnings []storage.DomainExpiry
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -90,6 +94,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /monitors/{id}/edit", s.require(s.update))
 	s.mux.HandleFunc("POST /monitors/{id}/delete", s.require(s.delete))
 	s.mux.HandleFunc("GET /incidents", s.require(s.incidents))
+	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
+	s.mux.HandleFunc("POST /domains/{name}/manual", s.require(s.domainSaveManual))
 	s.mux.HandleFunc("GET /settings", s.require(s.settings))
 	s.mux.HandleFunc("POST /settings/telegram", s.require(s.saveTelegram))
 	s.mux.HandleFunc("POST /settings/telegram/test", s.require(s.testTelegram))
@@ -181,6 +187,7 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if problems,err:=s.DB.DiagnosticProblems();err==nil {v.Problems=problems}
+ if domainWarnings,err:=s.DB.DomainWarnings();err==nil {v.DomainWarnings=domainWarnings}
 	s.render(w, r, "dashboard.html", v)
 }
 func (s *Server) newForm(w http.ResponseWriter, r *http.Request) {
@@ -261,6 +268,7 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
  if diag, err := s.DB.Diagnostic(m.ID); err == nil {v.Diagnostic=diag;v.HasDiagnostic=true}
  if stats, err := s.DB.Uptime(m.ID,time.Now().Add(-24*time.Hour)); err == nil {v.Stats=stats}
  if latencies,err:=s.DB.LastLatencies(m.ID,100);err==nil {v.GraphPoints=latencyGraph(latencies)}
+ if domain,err:=s.DB.DomainForMonitor(m.ID);err==nil {v.Domain=domain;v.HasDomain=true}
  s.render(w,r,"detail.html",v)
 }
 func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
