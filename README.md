@@ -153,9 +153,11 @@ migration. New/edited monitors are mapped as they are saved.
   the app shows the error and does not invent an expiration date. Previous
   successful RDAP data is retained on transient query errors.
 
-**Important limitations:** The .ru registry is not currently listed in the
-IANA public RDAP DNS bootstrap. Enter .ru expiry dates manually (e.g. from
-your registrar) until WHOIS support is implemented. RDAP registry expiry can
+**Important limitations:** The .ru registry is not listed in the public IANA RDAP bootstrap. For .ru
+and .рф (xn--p1ai), the program falls back to the official TCI WHOIS
+server at whois.tcinet.ru:43 and reads the paid-till field (not free-date).
+If outbound TCP port 43 is blocked or the registry rate-limits queries,
+set a manual date from the registrar. RDAP registry expiry can
 differ from a registrar's paid-through date; manual override exists for this
 reason. Registrable domain extraction recognizes common multi-part public
 suffixes, but is not a full Public Suffix List implementation, so inspect
@@ -164,3 +166,7 @@ complex country-code/private suffixes before relying on notifications.
 This implementation is **beta**: back up `data/` before upgrade, review
 results at `/domains`, test the alert schedule and do not rely on it as
 the only source of renewal reminders.
+
+### WHOIS fallback for .ru / .рф
+
+When an RDAP lookup fails for a .ru or .рф domain, Site Observatory queries the fixed official TCI WHOIS endpoint over TCP port 43 and extracts `paid-till`. The same hourly scheduler checks for previously unsupported RDAP entries so older .ru monitors get another lookup shortly after upgrading. Subsequent successful lookups run approximately once a day. Responses are capped at 64 KiB and TCP requests have timeouts. WHOIS does not replace manual expiry dates, which take priority. If your network blocks port 43, manual dates remain available.
