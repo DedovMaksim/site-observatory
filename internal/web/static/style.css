@@ -45,3 +45,9 @@
 .monitor-incidents .incident-status-ok{color:var(--green);margin:13px 0}
 .monitor-incidents .incident-active-summary{color:var(--red);border-left:3px solid var(--red);padding:6px 12px;background:color-mix(in srgb,var(--red) 8%,transparent);margin:14px 0}
 .monitor-incidents .monitor-details{margin-top:12px}
+
+.domain-manual{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.domain-manual input{background:var(--bg);color:var(--ink);border:1px solid var(--border);padding:8px;border-radius:7px;max-width:175px}
+.domain-manual button{padding:7px 10px}
+.domain-error{color:var(--red);overflow-wrap:anywhere;max-width:260px}
+.domain-detail .cardhead{margin-bottom:14px}
