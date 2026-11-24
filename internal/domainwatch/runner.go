@@ -12,8 +12,9 @@ import (
 type Runner struct {
  DB *storage.DB
  Lookup *domains.Client
+ WHOIS *domains.WhoisClient
 }
-func NewRunner(db *storage.DB)*Runner{return &Runner{DB:db,Lookup:domains.NewClient()}}
+func NewRunner(db *storage.DB)*Runner{return &Runner{DB:db,Lookup:domains.NewClient(),WHOIS:&domains.WhoisClient{}}}
 func (r *Runner) Run(ctx context.Context){
  r.step(ctx)
  tick:=time.NewTicker(time.Minute)
@@ -32,6 +33,11 @@ func (r *Runner) step(ctx context.Context){
   if ctx.Err()!=nil{return}
   lookupCtx,cancel:=context.WithTimeout(ctx,25*time.Second)
   result,lookupErr:=r.Lookup.Lookup(lookupCtx,item.Domain)
+  // Keep automatic WHOIS limited to the TCI registry's two zones.
+  // For them, WHOIS paid-till is the registration paid-through date.
+  if lookupErr!=nil && domains.SupportsTCIWhois(item.Domain) && lookupCtx.Err()==nil {
+   result,lookupErr=r.WHOIS.Lookup(lookupCtx,item.Domain)
+  }
   cancel()
   if err:=r.DB.RecordDomainLookup(ctx,item.Domain,result.Expires,result.Source,lookupErr);err!=nil{
    log.Printf("domain expiry save %s: %v",item.Domain,err)
