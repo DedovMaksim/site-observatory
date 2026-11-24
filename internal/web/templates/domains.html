@@ -3,6 +3,8 @@
   <div><h1>Сроки регистрации доменов</h1><p class="muted">Проверка раз в сутки. RDAP и WHOIS выполняются автоматически, ручная дата имеет приоритет.</p></div>
   <a href="/">← Обзор</a>
 </div>
+{{if .Message}}<p class="notice">{{.Message}}</p>{{end}}
+{{if .Error}}<p class="alert">{{.Error}}</p>{{end}}
 <div class="card">
   <div class="cardhead"><h2>Домены</h2><span class="muted">{{len .Domains}} доменов</span></div>
   <div class="tablewrap"><table>
@@ -11,7 +13,12 @@
       <tr>
         <td><strong>{{.Domain}}</strong><small>Мониторов: {{.MonitorCount}}</small></td>
         <td>{{if .HasDate}}{{.EffectiveDate}}{{else}}<span class="muted">Не определено</span>{{end}}</td>
-        <td>{{if .HasDate}}{{if le .DaysLeft 0}}<span class="down">Просрочен / сегодня</span>{{else if le .DaysLeft 30}}<span class="down">{{.DaysLeft}} дн.</span>{{else}}{{.DaysLeft}} дн.{{end}}{{else}}—{{end}}</td>
+        <td>{{if .HasDate}}
+          {{if le .DaysLeft 0}}<span class="domain-status domain-critical">Просрочен / сегодня</span>
+          {{else if le .DaysLeft 7}}<span class="domain-status domain-critical">{{.DaysLeft}} дн.</span>
+          {{else if le .DaysLeft 30}}<span class="domain-status domain-warning">{{.DaysLeft}} дн.</span>
+          {{else}}<span class="domain-status domain-safe">{{.DaysLeft}} дн.</span>{{end}}
+          {{else}}<span class="domain-status domain-unknown">Неизвестно</span>{{end}}</td>
         <td><span class="muted">{{if .Source}}{{.Source}}{{else}}Нет данных{{end}}</span>
         {{if .LastChecked}}<small>Проверено: {{.LastChecked}} UTC</small>{{end}}
         {{if .LastError}}<small class="domain-error">{{.LastError}}</small>{{end}}</td>
@@ -21,7 +28,13 @@
             <input type="date" name="manual_date" value="{{.ManualDate}}" aria-label="Ручная дата окончания {{.Domain}}">
             <button type="submit">Сохранить</button>
           </form>
-          {{if .ManualDate}}<small>Удалите дату и сохраните для возврата к RDAP.</small>{{end}}
+          {{if .ManualDate}}<small>Удалите дату и сохраните для возврата к RDAP/WHOIS.</small>{{end}}
+          {{if .HasDate}}
+          <form method="post" action="/domains/{{.Domain}}/test" class="domain-test-form">
+            <input type="hidden" name="csrf" value="{{$.CSRF}}">
+            <button type="submit" class="domain-test-button">Тест Telegram</button>
+          </form>
+          {{end}}
         </td>
       </tr>
     {{else}}<tr><td colspan="5" class="empty">Домены появятся после добавления мониторов.</td></tr>{{end}}
