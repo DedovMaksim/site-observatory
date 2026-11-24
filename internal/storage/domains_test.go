@@ -27,3 +27,14 @@ func TestDomainMigrationAndDeduplicatedAlerts(t *testing.T){
  var count int
  if err=db.QueryRow(`SELECT COUNT(*) FROM telegram_outbox`).Scan(&count);err!=nil||count!=1{t.Fatalf("alerts count %d %v",count,err)}
 }
+
+func TestDomainAlertThresholds(t *testing.T) {
+ cases:=[]struct{days int;level string}{
+  {75,""},{31,""},{30,"30"},{15,"30"},{14,"14"},{8,"14"},{7,"7"},{2,"7"},{1,"1"},{0,"EXPIRED"},{-2,"EXPIRED"},
+ }
+ for _,tc:=range cases {
+  if got:=alertLevel(tc.days);got!=tc.level {
+   t.Errorf("days=%d got %q want %q",tc.days,got,tc.level)
+  }
+ }
+}
