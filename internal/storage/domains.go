@@ -119,7 +119,7 @@ func (d *DB) SaveDomainManual(domain,date string)error{
 func (d *DB) DueDomains(now time.Time,limit int)([]DomainExpiry,error){
  if limit<1||limit>50{limit=10}
  rows,err:=d.Query(`SELECT `+domainColumns+` FROM domain_expiry d JOIN monitor_domains md ON md.domain=d.domain
- WHERE (d.next_check='' OR d.next_check<=?) GROUP BY d.domain ORDER BY d.next_check,d.domain LIMIT ?`,now.UTC().Format(time.RFC3339),limit)
+ WHERE (d.next_check='' OR d.next_check<=? OR (d.rdap_date='' AND d.last_error LIKE 'RDAP is unavailable%' AND (d.domain LIKE '%.ru' OR d.domain LIKE '%.xn--p1ai'))) GROUP BY d.domain ORDER BY d.next_check,d.domain LIMIT ?`,now.UTC().Format(time.RFC3339),limit)
  if err!=nil{return nil,err}
  defer rows.Close()
  out:=[]DomainExpiry{}
