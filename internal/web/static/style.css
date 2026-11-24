@@ -9,3 +9,33 @@
 .diagnostic-grid h3{margin:0 0 10px;font-size:15px}
 .break-text{overflow-wrap:anywhere}
 @media(max-width:740px){.diagnostic-grid{grid-template-columns:1fr}}
+
+
+/* Monitor detail v0.3: overview before history, responsive diagnostic cards. */
+.monitor-heading .actions{flex-wrap:wrap}
+.monitor-overview .cardhead h2,.monitor-history .cardhead h2{margin-bottom:0}
+.monitor-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:20px 0 24px}
+.monitor-metric{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;min-width:0}
+.monitor-metric>span,.monitor-metric>small{display:block}
+.monitor-metric>strong{display:block;font-size:28px;line-height:1.35;margin:4px 0}
+.monitor-metric>strong em{font-size:14px;font-style:normal;font-weight:500;color:var(--muted)}
+.chart-heading{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.chart-heading h3{font-size:15px;margin:0}
+.latency-chart{height:190px;margin:14px 0 0}
+.diagnostic-timestamp{font-size:12px;margin:0 0 14px}
+.diagnostic-grid{margin-top:0;gap:12px}
+.diagnostic-grid section{border-radius:10px;padding:16px}
+.diagnostic-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.diagnostic-heading h3{margin:0}
+.diagnostic-value{border:1px solid var(--border);color:var(--muted);border-radius:99px;font-size:11px;padding:2px 8px;font-weight:700}
+.diagnostic-warning{border:1px solid var(--red);color:var(--red);border-radius:99px;font-size:11px;padding:2px 8px;font-weight:700}
+.diagnostic-facts{margin:0;display:grid;gap:3px}
+.diagnostic-facts dt{color:var(--muted);font-size:12px;margin-top:8px}
+.diagnostic-facts dd{margin:0;font-size:13px;overflow-wrap:anywhere}
+.monitor-history .bars{margin-top:16px;margin-bottom:14px}
+.monitor-history .bars .bar{min-height:27px;padding:0;min-width:3px}
+.monitor-details{border-top:1px solid var(--border);padding-top:10px}
+.monitor-details summary{cursor:pointer;display:list-item;list-style-position:inside;color:var(--accent);font-weight:600;padding:7px 0;user-select:none}
+.monitor-details summary:hover{text-decoration:underline}
+.monitor-details[open] summary{margin-bottom:8px}
+@media(max-width:740px){.monitor-metrics{grid-template-columns:1fr}.diagnostic-grid{grid-template-columns:1fr}.monitor-heading .actions{margin-left:0}.cardhead{gap:8px;flex-wrap:wrap}.monitor-overview .latency-chart{height:160px}}
