@@ -227,12 +227,16 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "form.html", view{Title: "Новый монитор", Monitor: m, Error: e.Error()})
 		return
 	}
-	id, e := s.DB.CreateMonitor(m.Name, m.URL, m.Interval, m.Timeout, m.Enabled)
+	manualDate:=strings.TrimSpace(r.PostForm.Get("domain_expiry"))
+ if !validDomainDate(manualDate) {w.WriteHeader(400);s.render(w,r,"form.html",view{Title:"Новый монитор",Monitor:m,Error:"Дата домена должна быть в формате YYYY-MM-DD"});return}
+ id, e := s.DB.CreateMonitor(m.Name, m.URL, m.Interval, m.Timeout, m.Enabled)
 	if e != nil {
 		http.Error(w, e.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/monitors/%d", id), 303)
+	if e=s.DB.SyncMonitorDomain(id,m.URL);e!=nil{http.Error(w,"domain mapping error",500);return}
+ if manualDate!=""{if domain,err:=s.DB.DomainForMonitor(id);err==nil {if err=s.DB.SaveDomainManual(domain.Domain,manualDate);err!=nil {http.Error(w,"domain date save error",500);return}}}
+ http.Redirect(w, r, fmt.Sprintf("/monitors/%d", id), 303)
 }
 func id(r *http.Request) (int64, error) { return strconv.ParseInt(r.PathValue("id"), 10, 64) }
 func (s *Server) fetch(w http.ResponseWriter, r *http.Request) (storage.Monitor, bool) {
@@ -276,7 +280,9 @@ func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.render(w, r, "form.html", view{Title: "Редактировать", Monitor: m, Editing: true})
+	v:=view{Title: "Редактировать", Monitor: m, Editing: true}
+ if domain,err:=s.DB.DomainForMonitor(m.ID);err==nil{v.Domain=domain;v.HasDomain=true}
+ s.render(w,r,"form.html",v)
 }
 func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 	old, ok := s.fetch(w, r)
@@ -290,11 +296,15 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "form.html", view{Title: "Редактировать", Monitor: m, Editing: true, Error: e.Error()})
 		return
 	}
-	if e = s.DB.UpdateMonitor(old.ID, m.Name, m.URL, m.Interval, m.Timeout, m.Enabled); e != nil {
+	manualDate:=strings.TrimSpace(r.PostForm.Get("domain_expiry"))
+ if !validDomainDate(manualDate) {w.WriteHeader(400);s.render(w,r,"form.html",view{Title:"Редактировать",Monitor:m,Editing:true,Error:"Дата домена должна быть в формате YYYY-MM-DD"});return}
+ if e = s.DB.UpdateMonitor(old.ID, m.Name, m.URL, m.Interval, m.Timeout, m.Enabled); e != nil {
 		http.Error(w, e.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/monitors/%d", old.ID), 303)
+	if e=s.DB.SyncMonitorDomain(old.ID,m.URL);e!=nil{http.Error(w,"domain mapping error",500);return}
+ if domain,err:=s.DB.DomainForMonitor(old.ID);err==nil{if err=s.DB.SaveDomainManual(domain.Domain,manualDate);err!=nil {http.Error(w,"domain date save error",500);return}}
+ http.Redirect(w, r, fmt.Sprintf("/monitors/%d", old.ID), 303)
 }
 func (s *Server) delete(w http.ResponseWriter, r *http.Request) {
 	m, ok := s.fetch(w, r)
