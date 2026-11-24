@@ -130,3 +130,37 @@ This beta is intended for local testing before deployment to a public VDS.
 An authenticated administrator can initiate checks of external sites. The
 diagnostic HTTP and TLS clients block private/loopback addresses and re-resolve
 redirect destinations. Review network egress restrictions in production.
+
+
+## Domain expiry monitoring (v0.4 beta)
+
+Domain monitoring is independent of uptime checks. Every monitored HTTP(S)
+host is mapped to a registration domain; multiple subdomains share the same
+registration record. Existing monitors are mapped during database startup
+migration. New/edited monitors are mapped as they are saved.
+
+- **Automatic:** IANA RDAP bootstrap chooses an HTTPS server; RDAP `registrar
+  expiration` is preferred over `expiration` when both are available.
+  Checks run approximately daily, with bounded response size and timeouts.
+- **Manual override:** Set the expiry date when adding/editing a monitor or at
+  `/domains`; the entered date has priority over automatic RDAP data.
+  Clear the date at `/domains` to return to RDAP.
+- **Alerts:** With Telegram notifications enabled and configured, domain
+  expiration thresholds are 30, 14, 7 and 1 day plus an overdue warning.
+  Each threshold is queued once for a given domain/expiry-date pair.
+  The queue uses the existing durable Telegram outbox.
+- **Unknown:** If no supported RDAP server or expiration event is available,
+  the app shows the error and does not invent an expiration date. Previous
+  successful RDAP data is retained on transient query errors.
+
+**Important limitations:** The .ru registry is not currently listed in the
+IANA public RDAP DNS bootstrap. Enter .ru expiry dates manually (e.g. from
+your registrar) until WHOIS support is implemented. RDAP registry expiry can
+differ from a registrar's paid-through date; manual override exists for this
+reason. Registrable domain extraction recognizes common multi-part public
+suffixes, but is not a full Public Suffix List implementation, so inspect
+complex country-code/private suffixes before relying on notifications.
+
+This implementation is **beta**: back up `data/` before upgrade, review
+results at `/domains`, test the alert schedule and do not rely on it as
+the only source of renewal reminders.
