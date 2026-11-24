@@ -86,11 +86,27 @@
     </table></div>
   </details>
 </section>
-<section class="card" aria-labelledby="incidents-title">
-  <h2 id="incidents-title">Инциденты</h2>
-  <div class="tablewrap"><table><thead><tr><th>Начало (UTC)</th><th>Восстановление</th><th>Причина</th></tr></thead>
-    <tbody>{{range .Incidents}}<tr><td>{{.StartedAt}}</td><td>{{if .EndedAt}}{{.EndedAt}}{{else}}Активен{{end}}</td><td class="break-text">{{.Reason}}</td></tr>{{else}}<tr><td colspan="3">Инцидентов нет</td></tr>{{end}}</tbody>
-  </table></div>
+<section class="card monitor-incidents" aria-labelledby="incidents-title">
+  <div class="cardhead">
+    <h2 id="incidents-title">Инциденты</h2>
+    <span class="muted">Последние {{len .Incidents}} из 50 возможных записей</span>
+  </div>
+  {{if gt .ActiveIncidents 0}}
+    <p class="incident-active-summary" role="status">Активных инцидентов: <strong>{{.ActiveIncidents}}</strong></p>
+  {{else}}
+    <p class="muted incident-status-ok">Активных инцидентов нет</p>
+  {{end}}
+  {{if .Incidents}}
+  <details class="monitor-details">
+    <summary>Показать историю инцидентов ({{len .Incidents}})</summary>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Начало (UTC)</th><th>Восстановление</th><th>Причина</th></tr></thead>
+      <tbody>{{range .Incidents}}<tr><td>{{.StartedAt}}</td><td>{{if .EndedAt}}{{.EndedAt}}{{else}}<span class="down">Активен</span>{{end}}</td><td class="break-text">{{.Reason}}</td></tr>{{end}}</tbody>
+    </table></div>
+  </details>
+  {{else}}
+    <p class="muted">История инцидентов пока пуста.</p>
+  {{end}}
 </section>
 {{template "foot" .}}
 {{end}}
