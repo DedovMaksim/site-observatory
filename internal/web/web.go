@@ -37,6 +37,7 @@ type view struct {
 	Monitor                     storage.Monitor
 	Checks                      []storage.Check
 	Incidents                   []storage.Incident
+	ActiveIncidents             int
 	Up, Down, Unknown           int
 	Editing                     bool
 	Telegram                    storage.TelegramSettings
@@ -256,6 +257,7 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	v := view{Title: m.Name, Monitor: m, Checks: checks, Incidents: incidents}
+ for _,incident := range incidents { if incident.EndedAt == "" { v.ActiveIncidents++ } }
  if diag, err := s.DB.Diagnostic(m.ID); err == nil {v.Diagnostic=diag;v.HasDiagnostic=true}
  if stats, err := s.DB.Uptime(m.ID,time.Now().Add(-24*time.Hour)); err == nil {v.Stats=stats}
  if latencies,err:=s.DB.LastLatencies(m.ID,100);err==nil {v.GraphPoints=latencyGraph(latencies)}
