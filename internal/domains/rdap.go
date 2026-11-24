@@ -81,17 +81,15 @@ func baseForDomain(d string,r Registry)(string,error){
   suffix:=strings.Join(labels[len(labels)-n:],".")
   for _,svc:=range r.Services {
    if len(svc)!=2 {continue}
-   for _,name:=range svc[0]{
-    if !strings.EqualFold(name,suffix){continue}
-    }
-    bases:=append([]string(nil),svc[1]...)
-    sort.Strings(bases)
-    for _,base:=range bases {
-     parsed,err:=url.Parse(base)
-     if err==nil&&parsed.Scheme=="https"&&parsed.Hostname()!=""&&parsed.User==nil && parsed.Port()=="" {
-      // IANA bootstrap is the only source of allowed RDAP endpoints.
-      return strings.TrimRight(base,"/"),nil
-     }
+   matched:=false
+   for _,name:=range svc[0]{if strings.EqualFold(name,suffix){matched=true;break}}
+   if !matched {continue}
+   bases:=append([]string(nil),svc[1]...)
+   sort.Strings(bases)
+   for _,base:=range bases {
+    parsed,err:=url.Parse(base)
+    if err==nil&&parsed.Scheme=="https"&&parsed.Hostname()!=""&&parsed.User==nil&&parsed.Port()==""{
+     return strings.TrimRight(base,"/"),nil
     }
    }
   }
