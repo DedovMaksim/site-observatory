@@ -18,7 +18,7 @@ import (
 const whoisAddress = "whois.tcinet.ru:43"
 const maxWHOISResponse = 64 * 1024
 
-var whoisName = regexp.MustCompile(`^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$`)
+var whoisName = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 
 func SupportsTCIWhois(domain string) bool {
  d := strings.ToLower(domain)
