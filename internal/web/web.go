@@ -96,7 +96,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /incidents", s.require(s.incidents))
 	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
 	s.mux.HandleFunc("POST /domains/{name}/manual", s.require(s.domainSaveManual))
-	s.mux.HandleFunc("POST /domains/{name}/test", s.require(s.domainTestTelegram))
 	s.mux.HandleFunc("GET /settings", s.require(s.settings))
 	s.mux.HandleFunc("POST /settings/telegram", s.require(s.saveTelegram))
 	s.mux.HandleFunc("POST /settings/telegram/test", s.require(s.testTelegram))
