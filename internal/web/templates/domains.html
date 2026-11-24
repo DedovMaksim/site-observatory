@@ -3,8 +3,6 @@
   <div><h1>Сроки регистрации доменов</h1><p class="muted">Проверка раз в сутки. RDAP и WHOIS выполняются автоматически, ручная дата имеет приоритет.</p></div>
   <a href="/">← Обзор</a>
 </div>
-{{if .Message}}<p class="notice">{{.Message}}</p>{{end}}
-{{if .Error}}<p class="alert">{{.Error}}</p>{{end}}
 <div class="card">
   <div class="cardhead"><h2>Домены</h2><span class="muted">{{len .Domains}} доменов</span></div>
   <div class="tablewrap"><table>
@@ -29,12 +27,6 @@
             <button type="submit">Сохранить</button>
           </form>
           {{if .ManualDate}}<small>Удалите дату и сохраните для возврата к RDAP/WHOIS.</small>{{end}}
-          {{if .HasDate}}
-          <form method="post" action="/domains/{{.Domain}}/test" class="domain-test-form">
-            <input type="hidden" name="csrf" value="{{$.CSRF}}">
-            <button type="submit" class="domain-test-button">Тест Telegram</button>
-          </form>
-          {{end}}
         </td>
       </tr>
     {{else}}<tr><td colspan="5" class="empty">Домены появятся после добавления мониторов.</td></tr>{{end}}
