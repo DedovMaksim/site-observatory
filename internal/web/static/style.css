@@ -59,5 +59,3 @@
 .domain-warning{color:#e7b65a}
 .domain-critical{color:var(--red)}
 .domain-unknown{color:var(--muted)}
-.domain-test-form{margin-top:8px}
-.domain-test-button{font-size:12px;padding:6px 10px;color:var(--accent)}
