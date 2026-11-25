@@ -54,6 +54,8 @@ type view struct {
 	Sitemaps []storage.SitemapState
 	Sitemap storage.SitemapState
 	SitemapChanges []storage.SitemapChange
+	SitemapSnapshots []storage.SitemapSnapshot
+	SitemapEnabled, SitemapTotal, SitemapErrors, SitemapAdded, SitemapRemoved int
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -194,6 +196,16 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	if problems,err:=s.DB.DiagnosticProblems();err==nil {v.Problems=problems}
  if domainWarnings,err:=s.DB.DomainWarnings();err==nil {v.DomainWarnings=domainWarnings}
+ if sitemaps,err:=s.DB.SitemapList();err==nil {
+  v.Sitemaps=sitemaps
+  for _,site:=range sitemaps {
+   if !site.Enabled {continue}
+   v.SitemapEnabled++
+   v.SitemapTotal+=site.Total
+   if site.Status=="ERROR"{v.SitemapErrors++}
+   if site.Status=="OK"{v.SitemapAdded+=site.Added;v.SitemapRemoved+=site.Removed}
+  }
+ }
 	s.render(w, r, "dashboard.html", v)
 }
 func (s *Server) newForm(w http.ResponseWriter, r *http.Request) {
