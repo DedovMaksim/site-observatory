@@ -90,6 +90,7 @@ func pageTemplateFuncs() template.FuncMap { return template.FuncMap{"percent": f
 		}
 		return s
 	}}
+}
 func (s *Server) Handler() http.Handler { return securityHeaders(s.mux) }
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
