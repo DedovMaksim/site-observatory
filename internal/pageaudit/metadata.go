@@ -32,7 +32,7 @@ func ParseSEO(body string,header http.Header)SEO{
   s.Title=spacePattern.ReplaceAllString(strings.TrimSpace(html.UnescapeString(m[1]))," ")
   if len(s.Title)>400{s.Title=s.Title[:400]}
  }
- for _,tag:=range tagPattern.FindAllString(body){
+ for _,tag:=range tagPattern.FindAllString(body,-1){
   a:=attrs(tag)
   low:=strings.ToLower(tag)
   if strings.HasPrefix(low,"<link") && s.Canonical==""{
