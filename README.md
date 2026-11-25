@@ -238,3 +238,25 @@ policies. Treat warnings as prompts to inspect robots.txt, not definitive
 claims about indexing or crawling.
 
 The main dashboard summarizes enabled robots.txt monitors, unavailable files and root-disallow warning signals. Monitoring remains opt-in per site.
+
+## Page audit (v0.6 beta, experimental)
+
+After successfully enabling and scanning a sitemap, open `/pages` and
+explicitly enable page checks for the relevant monitor. Page audits are
+**disabled by default**. The worker selects up to **5 pages per minute**,
+with at least **2 seconds between page HTTP requests**, globally across
+monitors. Each URL is eligible again no earlier than 24 hours later.
+At most 2 MiB of HTML is read for a page.
+
+The page audit records HTTP status, `title`, `canonical`, HTML
+`meta robots` and `X-Robots-Tag`; it stores only metadata, not the full
+HTML. The first check is a baseline; later checks produce events for
+changed HTTP status and metadata. Results and latest events are available
+at `/pages/<monitor-id>`. Checks reuse the sitemap crawler's same-host,
+redirect and public-IP security restrictions.
+
+**Limitations:** metadata extraction is a lightweight static HTML parser
+and does not execute JavaScript; dynamic client-rendered metadata may
+not be discovered. Canonical/noindex warnings are advisory, not indexing
+guarantees. This initial page audit does **not** send Telegram alerts.
+Sites with very large sitemaps are processed gradually over many cycles.
