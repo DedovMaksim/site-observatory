@@ -40,7 +40,8 @@ func (d *DB) MigrateSitemap() error{
  total INTEGER NOT NULL DEFAULT 0,
  added INTEGER NOT NULL DEFAULT 0,
  removed INTEGER NOT NULL DEFAULT 0,
- files INTEGER NOT NULL DEFAULT 0
+ files INTEGER NOT NULL DEFAULT 0,
+ has_baseline INTEGER NOT NULL DEFAULT 0
  );
  CREATE TABLE IF NOT EXISTS sitemap_urls (
  monitor_id INTEGER NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -115,10 +116,10 @@ func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)
  checked:=now.Format(time.RFC3339)
  // The initial scan establishes a baseline; it does not represent a burst
  // of newly published pages.
- var previous string
- err=tx.QueryRowContext(ctx,`SELECT last_checked FROM sitemap_settings WHERE monitor_id=?`,id).Scan(&previous)
+ var baseline int
+ err=tx.QueryRowContext(ctx,`SELECT has_baseline FROM sitemap_settings WHERE monitor_id=?`,id).Scan(&baseline)
  if err!=nil{return err}
- initial:=previous==""
+ initial:=baseline==0
  seen:=map[string]bool{}
  added,removed:=0,0
  for _,u:=range urls{
@@ -140,7 +141,7 @@ func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)
   }
  }
  if initial{added=0;removed=0}
- _,err=tx.ExecContext(ctx,`UPDATE sitemap_settings SET status='OK',last_error='',last_checked=?,next_check=?,total=?,added=?,removed=?,files=? WHERE monitor_id=?`,checked,now.Add(24*time.Hour).Format(time.RFC3339),len(seen),added,removed,files,id)
+ _,err=tx.ExecContext(ctx,`UPDATE sitemap_settings SET status='OK',last_error='',last_checked=?,next_check=?,total=?,added=?,removed=?,files=?,has_baseline=1 WHERE monitor_id=?`,checked,now.Add(24*time.Hour).Format(time.RFC3339),len(seen),added,removed,files,id)
  if err!=nil{return err}
  // Bound retained change history per monitor.
  _,err=tx.ExecContext(ctx,`DELETE FROM sitemap_changes WHERE monitor_id=? AND id NOT IN (SELECT id FROM sitemap_changes WHERE monitor_id=? ORDER BY id DESC LIMIT 500)`,id,id)
