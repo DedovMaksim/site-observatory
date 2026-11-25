@@ -4,6 +4,7 @@ import (
  "context"
  "database/sql"
  "errors"
+ "strings"
  "time"
 )
 
@@ -146,4 +147,85 @@ func(d *DB) PageAuditEvents(id int64)([]PageAuditEvent,error){
  out:=[]PageAuditEvent{}
  for rows.Next(){var v PageAuditEvent;if err=rows.Scan(&v.CheckedAt,&v.URL,&v.Kind,&v.Detail);err!=nil{return nil,err};out=append(out,v)}
  return out,rows.Err()
+}
+
+type PageAuditFilter struct {
+ MonitorID int64
+ Search string
+ Status string
+ Page int
+ PageSize int
+}
+type PageAuditPage struct {
+ Results []PageAuditResult
+ Total int
+ Page int
+ PageSize int
+ HasPrevious bool
+ HasNext bool
+}
+type PageAuditIssueCounts struct{
+ HTTP,Noindex,Title,Canonical,CanonicalMismatch int
+}
+func PageAuditFilterValid(status string)bool{
+ switch status{
+ case "all","http","noindex","title","canonical","mismatch":return true
+ default:return false
+ }
+}
+func auditFilterSQL(filter PageAuditFilter)(string,[]any){
+ where:=` WHERE p.monitor_id=?`
+ args:=[]any{filter.MonitorID}
+ if filter.Search!=""{
+  // Literal substring matching: escape SQL LIKE wildcard characters.
+  escaped:=strings.NewReplacer(`\\`,`\\\\`,`%`,`\\%`,`_`,`\\_`).Replace(filter.Search)
+  where+=` AND (p.url LIKE ? ESCAPE '\\' OR p.title LIKE ? ESCAPE '\\')`
+  args=append(args,"%"+escaped+"%","%"+escaped+"%")
+ }
+ switch filter.Status {
+ case "http":where+=` AND (p.http_status=0 OR p.http_status>=400 OR p.last_error<>'')`
+ case "noindex":where+=` AND p.noindex=1`
+ case "title":where+=` AND TRIM(p.title)=''`
+ case "canonical":where+=` AND TRIM(p.canonical)=''`
+ case "mismatch":where+=` AND TRIM(p.canonical)<>'' AND LOWER(RTRIM(p.canonical,'/'))<>LOWER(RTRIM(p.url,'/'))`
+ }
+ return where,args
+}
+func (d *DB) PageAuditFiltered(filter PageAuditFilter)(PageAuditPage,error){
+ if !PageAuditFilterValid(filter.Status){return PageAuditPage{},errors.New("invalid audit filter")}
+ if filter.Page<1{filter.Page=1}
+ if filter.PageSize<1||filter.PageSize>100{filter.PageSize=25}
+ if len(filter.Search)>200{return PageAuditPage{},errors.New("search query too long")}
+ where,args:=auditFilterSQL(filter)
+ from:=` FROM page_audit_results p JOIN sitemap_urls s ON s.monitor_id=p.monitor_id AND s.url=p.url`
+ var count int
+ if err:=d.QueryRow(`SELECT COUNT(*)`+from+where,args...).Scan(&count);err!=nil{return PageAuditPage{},err}
+ maxPage:=1
+ if count>0{maxPage=(count+filter.PageSize-1)/filter.PageSize}
+ if filter.Page>maxPage{filter.Page=maxPage}
+ result:=PageAuditPage{Total:count,Page:filter.Page,PageSize:filter.PageSize,HasPrevious:filter.Page>1,HasNext:filter.Page<maxPage,Results:[]PageAuditResult{}}
+ query:=`SELECT p.url,p.checked_at,p.http_status,p.title,p.canonical,p.robots,p.noindex,p.last_error`+from+where+` ORDER BY (p.http_status>=400 OR p.http_status=0 OR p.last_error<>'' OR p.noindex=1) DESC,p.checked_at DESC,p.url ASC LIMIT ? OFFSET ?`
+ args=append(args,filter.PageSize,(filter.Page-1)*filter.PageSize)
+ rows,err:=d.Query(query,args...)
+ if err!=nil{return PageAuditPage{},err}
+ defer rows.Close()
+ for rows.Next(){
+  var v PageAuditResult;var noindex int
+  if err=rows.Scan(&v.URL,&v.CheckedAt,&v.Status,&v.Title,&v.Canonical,&v.Robots,&noindex,&v.Error);err!=nil{return PageAuditPage{},err}
+  v.Noindex=noindex!=0
+  result.Results=append(result.Results,v)
+ }
+ return result,rows.Err()
+}
+func (d *DB) PageAuditIssueCounts(id int64)(PageAuditIssueCounts,error){
+ var c PageAuditIssueCounts
+ err:=d.QueryRow(`SELECT
+ COALESCE(SUM(CASE WHEN p.http_status=0 OR p.http_status>=400 OR p.last_error<>'' THEN 1 ELSE 0 END),0),
+ COALESCE(SUM(CASE WHEN p.noindex=1 THEN 1 ELSE 0 END),0),
+ COALESCE(SUM(CASE WHEN TRIM(p.title)='' THEN 1 ELSE 0 END),0),
+ COALESCE(SUM(CASE WHEN TRIM(p.canonical)='' THEN 1 ELSE 0 END),0),
+ COALESCE(SUM(CASE WHEN TRIM(p.canonical)<>'' AND LOWER(RTRIM(p.canonical,'/'))<>LOWER(RTRIM(p.url,'/')) THEN 1 ELSE 0 END),0)
+ FROM page_audit_results p JOIN sitemap_urls s ON s.monitor_id=p.monitor_id AND s.url=p.url WHERE p.monitor_id=?`,id).
+ Scan(&c.HTTP,&c.Noindex,&c.Title,&c.Canonical,&c.CanonicalMismatch)
+ return c,err
 }
