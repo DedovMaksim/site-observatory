@@ -73,7 +73,7 @@ func TestPageAlertTransientFailureAndSilentBaseline(t *testing.T){
  if p,_,err:=db.PageAuditAlertSummary(id);err!=nil||p!=0{t.Fatalf("transient pending wasn't cleared: %d %v",p,err)}
  // Baseline page that starts bad must not generate a warning or recovery.
  another:="https://example.com/new/"
- if err=db.RecordSitemap(context.Background(),id,[]string{url,another},1);err!=nil{t.Fatal(err)}
+ if err:=db.RecordSitemap(context.Background(),id,[]string{url,another},1);err!=nil{t.Fatal(err)}
  savePageForAlert(t,db,id,another,404,"",false)
  savePageForAlert(t,db,id,another,200,"Healthy",false)
  if n:=alertMessageCount(t,db);n!=0{t.Fatalf("preexisting baseline failure produced alert: %d",n)}
