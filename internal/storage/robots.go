@@ -110,6 +110,7 @@ func (d *DB) RecordRobots(ctx context.Context,id int64,source string)error{
  defer tx.Rollback()
  var oldContent,oldStatus,name string;var enabled,baseline int
  err=tx.QueryRowContext(ctx,`SELECT r.content,r.status,r.has_baseline,r.enabled,m.name FROM robots_settings r JOIN monitors m ON m.id=r.monitor_id WHERE r.monitor_id=?`,id).Scan(&oldContent,&oldStatus,&baseline,&enabled,&name)
+ if errors.Is(err,sql.ErrNoRows){return nil}
  if err!=nil{return err}
  if enabled==0{return nil}
  previous:=robots.Parse(oldContent)
