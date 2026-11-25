@@ -182,7 +182,9 @@ avoid extra traffic to websites. Enter the sitemap URL (e.g. `/sitemap.xml`,
 A successful daily scan reads sitemap XML and sitemap indexes, recursively
 follows same-host nested sitemap links, records the number of XML files and
 unique page URLs, and compares the current URL list with the preceding
-successful scan. First scan establishes a **baseline** (zero changes).
+successful scan. The dashboard summarizes enabled sitemap monitors, total
+URLs, changes and errors. Each monitor retains up to 90 successful
+scan-count snapshots (visible in its history page). First scan establishes a **baseline** (zero changes).
 Later scans report added URLs and URLs removed from the sitemap. A removed
 URL does **not** necessarily indicate a deleted webpage.
 
@@ -195,8 +197,12 @@ uncompressed content per XML file, HTTPS/HTTP only, no cross-host sitemap
 links or page URLs. Larger or unusual sitemaps receive an explicit error;
 no partial snapshot is written. Files may be .gz compressed. Sitemap
 checking is once daily, with newly enabled monitors picked up on the
-next minute. This release **does not crawl each page**, perform per-page
-SEO audits, or send sitemap alerts to Telegram.
+next minute. This release **does not crawl each page** or perform per-page
+SEO audits. Telegram sends one notification when sitemap enters ERROR,
+when it recovers, or when a successful same-source scan loses at least
+10 URLs and at least 20% of the preceding snapshot. New pages do not
+trigger alerts. Alerts require an enabled, configured Telegram bot and
+use the existing durable message queue.
 
 Security: sitemap URLs must stay on the monitored hostname, outbound
 connections to private/loopback IPs are blocked, DNS is re-validated before
