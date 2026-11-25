@@ -51,6 +51,9 @@ type view struct {
 	Domain storage.DomainExpiry
 	HasDomain bool
 	DomainWarnings []storage.DomainExpiry
+	Sitemaps []storage.SitemapState
+	Sitemap storage.SitemapState
+	SitemapChanges []storage.SitemapChange
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -95,6 +98,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /monitors/{id}/delete", s.require(s.delete))
 	s.mux.HandleFunc("GET /incidents", s.require(s.incidents))
 	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
+	s.mux.HandleFunc("GET /sitemaps", s.require(s.sitemapList))
+	s.mux.HandleFunc("POST /sitemaps/{id}/configure", s.require(s.sitemapConfigure))
+	s.mux.HandleFunc("GET /sitemaps/{id}/changes", s.require(s.sitemapChanges))
 	s.mux.HandleFunc("POST /domains/{name}/manual", s.require(s.domainSaveManual))
 	s.mux.HandleFunc("GET /settings", s.require(s.settings))
 	s.mux.HandleFunc("POST /settings/telegram", s.require(s.saveTelegram))
