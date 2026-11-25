@@ -45,3 +45,35 @@
 .monitor-incidents .incident-status-ok{color:var(--green);margin:13px 0}
 .monitor-incidents .incident-active-summary{color:var(--red);border-left:3px solid var(--red);padding:6px 12px;background:color-mix(in srgb,var(--red) 8%,transparent);margin:14px 0}
 .monitor-incidents .monitor-details{margin-top:12px}
+
+.domain-manual{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.domain-manual input{background:var(--bg);color:var(--ink);border:1px solid var(--border);padding:8px;border-radius:7px;max-width:175px}
+.domain-manual button{padding:7px 10px}
+.domain-error{color:var(--red);overflow-wrap:anywhere;max-width:260px}
+.domain-detail .cardhead{margin-bottom:14px}
+
+/* v0.4 domain expiry states */
+.domain-status{display:inline-flex;align-items:center;gap:7px;font-weight:700;white-space:nowrap}
+.domain-status:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:currentColor}
+.domain-safe{color:var(--green)}
+.domain-warning{color:#e7b65a}
+.domain-critical{color:var(--red)}
+.domain-unknown{color:var(--muted)}
+
+.sitemap-config{display:grid;gap:8px;min-width:240px}
+.sitemap-config input[type=url]{background:var(--bg);color:var(--ink);width:100%;border:1px solid var(--border);border-radius:7px;padding:7px}
+.sitemap-config .check{display:flex;gap:8px;align-items:center}
+.sitemap-config button{width:max-content}
+.sitemap-state{font-size:12px;font-weight:700;margin:6px 0}
+
+/* Sitemap monitoring overview (v0.5) */
+.sitemap-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0 20px}
+.sitemap-summary-grid>div{border:1px solid var(--border);border-radius:9px;background:var(--bg);padding:12px;min-width:0}
+.sitemap-summary-grid span.muted{display:block;font-size:12px}
+.sitemap-summary-grid strong{display:block;font-size:23px;margin-top:5px}
+@media(max-width:740px){.sitemap-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.robots-config{display:grid;gap:8px}
+.robots-config .check{display:flex;gap:8px;align-items:center}
+.robots-config button{width:max-content}
+.robots-content{max-height:380px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--border);padding:14px;border-radius:9px;font-size:12px}

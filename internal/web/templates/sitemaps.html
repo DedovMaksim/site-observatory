@@ -1,0 +1,28 @@
+{{define "sitemaps.html"}}{{template "head" .}}
+<div class="heading"><div><h1>Мониторинг sitemap.xml</h1><p class="muted">Проверка карт сайта раз в сутки. По умолчанию отключено; URL из карты не обходятся.</p></div><a href="/">← Обзор</a></div>
+<div class="card"><div class="cardhead"><h2>Карты сайтов</h2><span class="muted">{{len .Sitemaps}} мониторов</span></div>
+<div class="tablewrap"><table>
+<thead><tr><th>Сайт</th><th>Последняя проверка</th><th>URL</th><th>Изменения</th><th>Настройки</th></tr></thead>
+<tbody>{{range .Sitemaps}}
+<tr>
+<td><a href="/monitors/{{.MonitorID}}"><strong>{{.MonitorName}}</strong></a><small>{{.SiteURL}}</small><small>{{if .Enabled}}Мониторинг включён{{else}}Мониторинг выключен{{end}}</small></td>
+<td>
+ {{if .LastChecked}}{{.LastChecked}} UTC{{else}}<span class="muted">Ещё не проверялось</span>{{end}}
+ {{if .Enabled}}<p class="sitemap-state {{if eq .Status "OK"}}up{{else if eq .Status "ERROR"}}down{{end}}">{{.Status}}</p>{{end}}
+ {{if .Error}}<small class="down break-text">{{.Error}}</small>{{end}}
+</td>
+<td>{{if .LastChecked}}<strong>{{.Total}}</strong><small>Файлов: {{.Files}}</small>{{else}}—{{end}}</td>
+<td>{{if .LastChecked}}<span class="up">+{{.Added}}</span> / <span class="down">−{{.Removed}}</span>{{else}}—{{end}}<small><a href="/sitemaps/{{.MonitorID}}/changes">История изменений</a></small></td>
+<td>
+<form method="post" action="/sitemaps/{{.MonitorID}}/configure" class="sitemap-config">
+<input type="hidden" name="csrf" value="{{$.CSRF}}">
+<label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Включить</label>
+<input type="url" name="sitemap_url" value="{{.URL}}" placeholder="https://example.com/sitemap.xml" maxlength="2048" aria-label="URL sitemap для {{.MonitorName}}">
+<button type="submit">Сохранить</button>
+</form>
+</td>
+</tr>
+{{else}}<tr><td colspan="5">Мониторы отсутствуют</td></tr>{{end}}
+</tbody></table></div>
+<p class="muted">Оставьте URL пустым для /sitemap.xml. Для WordPress можно указать /wp-sitemap.xml или /sitemap_index.xml. При сохранении включённой проверки новое сканирование выполняется в ближайшем цикле фонового планировщика.</p>
+</div>{{template "foot" .}}{{end}}

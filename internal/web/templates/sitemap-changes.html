@@ -1,0 +1,16 @@
+{{define "sitemap-changes.html"}}{{template "head" .}}
+<div class="heading"><div><h1>Изменения sitemap</h1><p class="muted">{{.Sitemap.MonitorName}} · {{.Sitemap.URL}}</p></div><a href="/sitemaps">← Все sitemap</a></div>
+<div class="card">
+<div class="cardhead"><h2>История сканирований</h2><span class="muted">Последние {{len .SitemapSnapshots}} успешных снимков</span></div>
+<div class="tablewrap"><table>
+<thead><tr><th>Дата (UTC)</th><th>URL</th><th>XML-файлы</th><th>Добавлено</th><th>Исчезло</th></tr></thead>
+<tbody>{{range .SitemapSnapshots}}
+<tr><td>{{.CheckedAt}}</td><td><strong>{{.Total}}</strong></td><td>{{.Files}}</td><td class="up">+{{.Added}}</td><td class="down">−{{.Removed}}</td></tr>
+{{else}}<tr><td colspan="5">Успешных сканирований пока не было.</td></tr>{{end}}
+</tbody></table></div></div>
+<div class="card">
+<div class="cardhead"><h2>История изменений URL</h2><span class="muted">Последние {{len .SitemapChanges}} событий</span></div>
+<div class="tablewrap"><table><thead><tr><th>Дата UTC</th><th>Событие</th><th>URL</th></tr></thead><tbody>
+{{range .SitemapChanges}}<tr><td>{{.CheckedAt}}</td><td>{{if eq .Kind "ADDED"}}<span class="up">Добавлен</span>{{else}}<span class="down">Исчез из sitemap</span>{{end}}</td><td class="break-text">{{.URL}}</td></tr>{{else}}<tr><td colspan="3">Изменений пока нет. Первая успешная проверка создаёт базовый снимок.</td></tr>{{end}}
+</tbody></table></div>
+</div>{{template "foot" .}}{{end}}

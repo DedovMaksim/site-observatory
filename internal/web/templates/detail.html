@@ -73,6 +73,24 @@
     <p class="muted">Диагностика ещё не выполнялась. Результаты появятся после первой фоновой проверки.</p>
   {{end}}
 </section>
+<section class="card domain-detail" aria-labelledby="domain-title"><div class="cardhead"><h2 id="domain-title">Регистрация домена</h2><a href="/domains">Управление доменами</a></div>{{if .HasDomain}}<p><strong>{{.Domain.Domain}}</strong> · {{if .Domain.HasDate}}{{.Domain.EffectiveDate}} (<span class="domain-status {{if le .Domain.DaysLeft 7}}domain-critical{{else if le .Domain.DaysLeft 30}}domain-warning{{else}}domain-safe{{end}}">{{.Domain.DaysLeft}} дн.</span>){{else}}<span class="muted">Дата окончания неизвестна</span>{{end}}</p><p class="muted">Источник: {{if .Domain.Source}}{{.Domain.Source}}{{else}}не определён{{end}}{{if .Domain.LastChecked}} · Проверено {{.Domain.LastChecked}} UTC{{end}}</p>{{if .Domain.LastError}}<p class="muted break-text">RDAP: {{.Domain.LastError}}</p>{{end}}{{else}}<p class="muted">Для этого монитора невозможно определить регистрируемый домен.</p>{{end}}</section>
+<section class="card" aria-labelledby="sitemap-title">
+<div class="cardhead"><h2 id="sitemap-title">Sitemap.xml</h2><a href="/sitemaps">Настройки</a></div>
+{{if .Sitemap.Enabled}}
+<p><strong>{{.Sitemap.Status}}</strong> · {{.Sitemap.Total}} URL · {{.Sitemap.Files}} XML-файлов</p>
+<p class="muted">{{if .Sitemap.LastChecked}}Последняя проверка: {{.Sitemap.LastChecked}} UTC{{else}}Проверка ещё не выполнялась{{end}}</p>
+<p>Изменения: <span class="up">+{{.Sitemap.Added}}</span> / <span class="down">−{{.Sitemap.Removed}}</span> · <a href="/sitemaps/{{.Monitor.ID}}/changes">История URL</a></p>
+{{if .Sitemap.Error}}<p class="alert break-text">{{.Sitemap.Error}}</p>{{end}}
+{{else}}<p class="muted">Мониторинг sitemap отключён. <a href="/sitemaps">Включить</a></p>{{end}}
+</section>
+<section class="card" aria-labelledby="robots-title"><div class="cardhead"><h2 id="robots-title">Robots.txt</h2><a href="/robots">Настройки</a></div>
+{{if .Robots.Enabled}}
+<p>Статус: {{if eq .Robots.Status "OK"}}<span class="up">OK</span>{{else if eq .Robots.Status "ERROR"}}<span class="down">ERROR</span>{{else}}<span class="muted">{{.Robots.Status}}</span>{{end}}</p>
+{{if .Robots.RootBlocks}}<p class="down">Внимание: Disallow: / для {{.Robots.RootBlocks}}</p>{{end}}
+<p class="muted">Последняя проверка: {{if .Robots.LastChecked}}{{.Robots.LastChecked}} UTC{{else}}Ещё не выполнялась{{end}}</p>
+<a href="/robots/{{.Monitor.ID}}/history">История robots.txt</a>
+{{if .Robots.LastError}}<p class="alert">{{.Robots.LastError}}</p>{{end}}
+{{else}}<p class="muted">Мониторинг robots.txt отключён. <a href="/robots">Включить</a></p>{{end}}</section>
 <section class="card monitor-history" aria-labelledby="history-title">
   <div class="cardhead"><h2 id="history-title">История проверок</h2><span class="muted">Последние 100</span></div>
   <div class="bars" aria-label="Лента последних проверок">
