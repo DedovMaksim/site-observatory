@@ -170,3 +170,71 @@ the only source of renewal reminders.
 ### WHOIS fallback for .ru / .рф
 
 When an RDAP lookup fails for a .ru or .рф domain, Site Observatory queries the fixed official TCI WHOIS endpoint over TCP port 43 and extracts `paid-till`. The same hourly scheduler checks for previously unsupported RDAP entries so older .ru monitors get another lookup shortly after upgrading. Subsequent successful lookups run approximately once a day. Responses are capped at 64 KiB and TCP requests have timeouts. WHOIS does not replace manual expiry dates, which take priority. If your network blocks port 43, manual dates remain available.
+
+
+## Sitemap monitoring (v0.5 beta)
+
+Navigate to `/sitemaps` and opt in per monitor. Disabled by default to
+avoid extra traffic to websites. Enter the sitemap URL (e.g. `/sitemap.xml`,
+`/sitemap_index.xml`, or `/wp-sitemap.xml`). Blank uses
+`<monitored-origin>/sitemap.xml`.
+
+A successful daily scan reads sitemap XML and sitemap indexes, recursively
+follows same-host nested sitemap links, records the number of XML files and
+unique page URLs, and compares the current URL list with the preceding
+successful scan. The dashboard summarizes enabled sitemap monitors, total
+URLs, changes and errors. Each monitor retains up to 90 successful
+scan-count snapshots (visible in its history page). First scan establishes a **baseline** (zero changes).
+Later scans report added URLs and URLs removed from the sitemap. A removed
+URL does **not** necessarily indicate a deleted webpage.
+
+A failure leaves the prior successful URL snapshot intact and shows the
+error in the interface. Results are available on `/sitemaps`, the site
+detail page, and `/sitemaps/<id>/changes`.
+
+**Limits in v0.5:** 60 sitemap XML files, 20,000 unique URLs, 12 MiB
+uncompressed content per XML file, HTTPS/HTTP only, no cross-host sitemap
+links or page URLs. Larger or unusual sitemaps receive an explicit error;
+no partial snapshot is written. Files may be .gz compressed. Sitemap
+checking is once daily, with newly enabled monitors picked up on the
+next minute. This release **does not crawl each page** or perform per-page
+SEO audits. Telegram sends one notification when sitemap enters ERROR,
+when it recovers, or when a successful same-source scan loses at least
+10 URLs and at least 20% of the preceding snapshot. New pages do not
+trigger alerts. Alerts require an enabled, configured Telegram bot and
+use the existing durable message queue.
+
+Security: sitemap URLs must stay on the monitored hostname, outbound
+connections to private/loopback IPs are blocked, DNS is re-validated before
+each connection, and redirects are restricted to the same hostname.
+The app stores URL strings and a bounded 500-event change history per
+monitor rather than full page HTML.
+
+Back up `data/` before first startup with this version. Local testing is
+recommended before deploying to a VDS.
+
+
+## Robots.txt monitoring (v0.5 beta)
+
+Open `/robots` and opt in for each monitored site. The worker fetches the
+site origin's `/robots.txt` about once a day. As with sitemap scanning,
+requests are restricted to the monitored hostname, use public DNS targets,
+enforce timeouts and cap the response to 512 KiB.
+
+The first successful scan creates a baseline; subsequent changed content
+is added to a bounded 100-event history view at `/robots/<id>/history`.
+The current raw file, discovered `Sitemap:` directives and simple
+`Disallow: /` warning signals are available there.
+
+Telegram notifications are queued on transitions to unavailable and
+recovered, newly introduced literal root `Disallow: /` for the wildcard
+`*`, `Googlebot` or `Yandex` groups, and changed `Sitemap:` directives.
+Repeated identical failures do not generate new messages.
+
+**Important:** The early-warning parser is not a full RFC 9309 rules
+evaluator. A root disallow can be overridden by a more specific `Allow`
+rule, and other specific crawler groups may have different effective
+policies. Treat warnings as prompts to inspect robots.txt, not definitive
+claims about indexing or crawling.
+
+The main dashboard summarizes enabled robots.txt monitors, unavailable files and root-disallow warning signals. Monitoring remains opt-in per site.

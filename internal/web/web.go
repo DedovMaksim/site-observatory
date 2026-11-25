@@ -51,6 +51,15 @@ type view struct {
 	Domain storage.DomainExpiry
 	HasDomain bool
 	DomainWarnings []storage.DomainExpiry
+	Sitemaps []storage.SitemapState
+	Sitemap storage.SitemapState
+	SitemapChanges []storage.SitemapChange
+	SitemapSnapshots []storage.SitemapSnapshot
+	SitemapEnabled, SitemapTotal, SitemapErrors, SitemapAdded, SitemapRemoved int
+	RobotsList []storage.RobotsState
+	Robots storage.RobotsState
+	RobotsChanges []storage.RobotsChange
+	RobotsEnabled, RobotsErrors, RobotsRootWarnings int
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -95,6 +104,12 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /monitors/{id}/delete", s.require(s.delete))
 	s.mux.HandleFunc("GET /incidents", s.require(s.incidents))
 	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
+	s.mux.HandleFunc("GET /sitemaps", s.require(s.sitemapList))
+	s.mux.HandleFunc("GET /robots", s.require(s.robotsList))
+	s.mux.HandleFunc("POST /robots/{id}/configure", s.require(s.robotsConfigure))
+	s.mux.HandleFunc("GET /robots/{id}/history", s.require(s.robotsHistory))
+	s.mux.HandleFunc("POST /sitemaps/{id}/configure", s.require(s.sitemapConfigure))
+	s.mux.HandleFunc("GET /sitemaps/{id}/changes", s.require(s.sitemapChanges))
 	s.mux.HandleFunc("POST /domains/{name}/manual", s.require(s.domainSaveManual))
 	s.mux.HandleFunc("GET /settings", s.require(s.settings))
 	s.mux.HandleFunc("POST /settings/telegram", s.require(s.saveTelegram))
@@ -188,6 +203,25 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	if problems,err:=s.DB.DiagnosticProblems();err==nil {v.Problems=problems}
  if domainWarnings,err:=s.DB.DomainWarnings();err==nil {v.DomainWarnings=domainWarnings}
+ if robotsList,err:=s.DB.RobotsList();err==nil {
+  v.RobotsList=robotsList
+  for _,item:=range robotsList {
+   if !item.Enabled{continue}
+   v.RobotsEnabled++
+   if item.Status=="ERROR"{v.RobotsErrors++}
+   if item.RootBlocks!=""{v.RobotsRootWarnings++}
+  }
+ }
+ if sitemaps,err:=s.DB.SitemapList();err==nil {
+  v.Sitemaps=sitemaps
+  for _,site:=range sitemaps {
+   if !site.Enabled {continue}
+   v.SitemapEnabled++
+   v.SitemapTotal+=site.Total
+   if site.Status=="ERROR"{v.SitemapErrors++}
+   if site.Status=="OK"{v.SitemapAdded+=site.Added;v.SitemapRemoved+=site.Removed}
+  }
+ }
 	s.render(w, r, "dashboard.html", v)
 }
 func (s *Server) newForm(w http.ResponseWriter, r *http.Request) {
@@ -273,6 +307,8 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
  if stats, err := s.DB.Uptime(m.ID,time.Now().Add(-24*time.Hour)); err == nil {v.Stats=stats}
  if latencies,err:=s.DB.LastLatencies(m.ID,100);err==nil {v.GraphPoints=latencyGraph(latencies)}
  if domain,err:=s.DB.DomainForMonitor(m.ID);err==nil {v.Domain=domain;v.HasDomain=true}
+ if sitemapState,err:=s.DB.SitemapForMonitor(m.ID);err==nil{v.Sitemap=sitemapState}
+ if robotsState,err:=s.DB.RobotsForMonitor(m.ID);err==nil{v.Robots=robotsState}
  s.render(w,r,"detail.html",v)
 }
 func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {

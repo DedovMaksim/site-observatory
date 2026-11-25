@@ -1,0 +1,13 @@
+{{define "robots-history.html"}}{{template "head" .}}
+<div class="heading"><div><h1>История robots.txt</h1><p class="muted">{{.Robots.MonitorName}} · {{.Robots.SiteURL}}</p></div><a href="/robots">← Все robots.txt</a></div>
+<div class="card"><div class="cardhead"><h2>Текущий статус</h2><span class="muted">{{.Robots.LastChecked}} UTC</span></div>
+<p>{{if eq .Robots.Status "OK"}}<strong class="up">OK</strong>{{else if eq .Robots.Status "ERROR"}}<strong class="down">ERROR</strong>{{else}}{{.Robots.Status}}{{end}}</p>
+{{if .Robots.LastError}}<p class="alert">{{.Robots.LastError}}</p>{{end}}
+{{if .Robots.RootBlocks}}<p class="down">Внимание: обнаружен Disallow: / для {{.Robots.RootBlocks}}</p>{{end}}
+{{if .Robots.SitemapList}}<p class="muted break-text">Объявленные Sitemap: {{.Robots.SitemapList}}</p>{{end}}
+<details class="monitor-details"><summary>Показать текущий robots.txt</summary><pre class="robots-content">{{.Robots.Content}}</pre></details>
+</div>
+<div class="card"><div class="cardhead"><h2>Журнал изменений</h2><span class="muted">Последние {{len .RobotsChanges}} событий</span></div>
+<div class="tablewrap"><table><thead><tr><th>Время (UTC)</th><th>Событие</th><th>Описание</th></tr></thead>
+<tbody>{{range .RobotsChanges}}<tr><td>{{.At}}</td><td>{{.Kind}}</td><td class="break-text">{{.Detail}}</td></tr>{{else}}<tr><td colspan="3">Изменений пока нет. Первая успешная проверка создаёт базовый снимок.</td></tr>{{end}}</tbody></table></div></div>
+{{template "foot" .}}{{end}}
