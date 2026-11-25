@@ -236,3 +236,5 @@ evaluator. A root disallow can be overridden by a more specific `Allow`
 rule, and other specific crawler groups may have different effective
 policies. Treat warnings as prompts to inspect robots.txt, not definitive
 claims about indexing or crawling.
+
+The main dashboard summarizes enabled robots.txt monitors, unavailable files and root-disallow warning signals. Monitoring remains opt-in per site.
