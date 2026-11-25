@@ -4,6 +4,7 @@ import (
  "context"
  "database/sql"
  "errors"
+ "fmt"
  "time"
 )
 
@@ -52,6 +53,16 @@ func (d *DB) MigrateSitemap() error{
  url TEXT NOT NULL,
  PRIMARY KEY(monitor_id,url)
  );
+ CREATE TABLE IF NOT EXISTS sitemap_snapshots (
+ id INTEGER PRIMARY KEY,
+ monitor_id INTEGER NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+ checked_at TEXT NOT NULL,
+ total INTEGER NOT NULL,
+ files INTEGER NOT NULL,
+ added INTEGER NOT NULL,
+ removed INTEGER NOT NULL
+ );
+ CREATE INDEX IF NOT EXISTS idx_sitemap_snapshots_monitor ON sitemap_snapshots(monitor_id,id DESC);
  CREATE TABLE IF NOT EXISTS sitemap_changes (
  id INTEGER PRIMARY KEY,
  monitor_id INTEGER NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
@@ -103,8 +114,21 @@ func (d *DB) DueSitemaps(now time.Time,limit int)([]SitemapState,error){
 func (d *DB) RecordSitemapError(ctx context.Context,id int64,scanErr error)error{
  msg:=scanErr.Error();if len(msg)>600{msg=msg[:600]}
  now:=time.Now().UTC()
- _,err:=d.ExecContext(ctx,`UPDATE sitemap_settings SET status='ERROR',last_error=?,last_checked=?,next_check=? WHERE monitor_id=?`,msg,now.Format(time.RFC3339),now.Add(24*time.Hour).Format(time.RFC3339),id)
- return err
+ tx,err:=d.BeginTx(ctx,nil);if err!=nil{return err}
+ defer tx.Rollback()
+ var previousStatus,name,source string
+ var enabled int
+ err=tx.QueryRowContext(ctx,`SELECT s.status,m.name,s.sitemap_url,s.enabled FROM sitemap_settings s JOIN monitors m ON m.id=s.monitor_id WHERE s.monitor_id=?`,id).Scan(&previousStatus,&name,&source,&enabled)
+ if err!=nil{return err}
+ if enabled==0{return nil}
+ _,err=tx.ExecContext(ctx,`UPDATE sitemap_settings SET status='ERROR',last_error=?,last_checked=?,next_check=? WHERE monitor_id=?`,msg,now.Format(time.RFC3339),now.Add(24*time.Hour).Format(time.RFC3339),id)
+ if err!=nil{return err}
+ // A single failure transition produces one notification, not a message per retry.
+ if previousStatus!="ERROR" {
+  alert:=fmt.Sprintf("🔴 Sitemap недоступен: %s\\nКарта: %s\\nОшибка: %s",name,source,msg)
+  if err=enqueueSitemapAlert(ctx,tx,alert);err!=nil{return err}
+ }
+ return tx.Commit()
 }
 func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)error{
  if len(urls)>20000{return errors.New("URL list too large")}
@@ -121,8 +145,8 @@ func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)
  // The initial scan establishes a baseline; it does not represent a burst
  // of newly published pages.
  var baseline int
- var sourceURL string
- err=tx.QueryRowContext(ctx,`SELECT has_baseline,sitemap_url FROM sitemap_settings WHERE monitor_id=?`,id).Scan(&baseline,&sourceURL)
+ var sourceURL,oldStatus,monitorName string
+ err=tx.QueryRowContext(ctx,`SELECT s.has_baseline,s.sitemap_url,s.status,m.name FROM sitemap_settings s JOIN monitors m ON m.id=s.monitor_id WHERE s.monitor_id=?`,id).Scan(&baseline,&sourceURL,&oldStatus,&monitorName)
  if err!=nil{return err}
  var previousSource string
  err=tx.QueryRowContext(ctx,`SELECT source_url FROM sitemap_baseline_sources WHERE monitor_id=?`,id).Scan(&previousSource)
@@ -153,6 +177,20 @@ func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)
   }
  }
  if initial{added=0;removed=0}
+ // Notify only on a meaningful loss of URLs (at least 10 and >=20%).
+ // A source switch is always a fresh baseline and never triggers this alert.
+ if !initial && len(old)>=10 && removed>=10 && removed*100>=len(old)*20 {
+  message:=fmt.Sprintf("⚠️ Из sitemap исчезло много URL: %s\\nКарта: %s\\nБыло: %d, стало: %d\\nИсчезло: %d, добавлено: %d\\nПроверьте карту и публикации.",monitorName,sourceURL,len(old),len(seen),removed,added)
+  if err=enqueueSitemapAlert(ctx,tx,message);err!=nil{return err}
+ }
+ if oldStatus=="ERROR" {
+  message:=fmt.Sprintf("🟢 Sitemap снова доступен: %s\\nКарта: %s\\nURL: %d",monitorName,sourceURL,len(seen))
+  if err=enqueueSitemapAlert(ctx,tx,message);err!=nil{return err}
+ }
+ _,err=tx.ExecContext(ctx,`INSERT INTO sitemap_snapshots(monitor_id,checked_at,total,files,added,removed) VALUES(?,?,?,?,?,?)`,id,checked,len(seen),files,added,removed)
+ if err!=nil{return err}
+ _,err=tx.ExecContext(ctx,`DELETE FROM sitemap_snapshots WHERE monitor_id=? AND id NOT IN (SELECT id FROM sitemap_snapshots WHERE monitor_id=? ORDER BY id DESC LIMIT 90)`,id,id)
+ if err!=nil{return err}
  _,err=tx.ExecContext(ctx,`INSERT INTO sitemap_baseline_sources(monitor_id,source_url) VALUES(?,?) ON CONFLICT(monitor_id) DO UPDATE SET source_url=excluded.source_url`,id,sourceURL)
  if err!=nil{return err}
  _,err=tx.ExecContext(ctx,`UPDATE sitemap_settings SET status='OK',last_error='',last_checked=?,next_check=?,total=?,added=?,removed=?,files=?,has_baseline=1 WHERE monitor_id=?`,checked,now.Add(24*time.Hour).Format(time.RFC3339),len(seen),added,removed,files,id)
@@ -170,4 +208,25 @@ func (d *DB) SitemapChanges(id int64,limit int)([]SitemapChange,error){
  out:=[]SitemapChange{}
  for rows.Next(){var v SitemapChange;if err=rows.Scan(&v.URL,&v.Kind,&v.CheckedAt);err!=nil{return nil,err};out=append(out,v)}
  return out,rows.Err()
+}
+
+func enqueueSitemapAlert(ctx context.Context,tx *sql.Tx,message string)error {
+ // Keep sitemap notifications in the same durable Telegram outbox as downtime
+ // notifications; disabled/unconfigured bots never accumulate old alerts.
+ _,err:=tx.ExecContext(ctx,`INSERT INTO telegram_outbox(message,next_attempt_at)
+ SELECT ?,? FROM telegram_settings WHERE id=1 AND enabled=1 AND chat_id<>'' AND token_ciphertext<>''`,message,time.Now().UTC().Format(time.RFC3339))
+ return err
+}
+type SitemapSnapshot struct{
+ CheckedAt string
+ Total,Files,Added,Removed int
+}
+func (d *DB) SitemapSnapshots(id int64,limit int)([]SitemapSnapshot,error){
+ if limit<1||limit>90{limit=30}
+ rows,err:=d.Query(`SELECT checked_at,total,files,added,removed FROM sitemap_snapshots WHERE monitor_id=? ORDER BY id DESC LIMIT ?`,id,limit)
+ if err!=nil{return nil,err}
+ defer rows.Close()
+ result:=[]SitemapSnapshot{}
+ for rows.Next(){var v SitemapSnapshot;if err=rows.Scan(&v.CheckedAt,&v.Total,&v.Files,&v.Added,&v.Removed);err!=nil{return nil,err};result=append(result,v)}
+ return result,rows.Err()
 }
