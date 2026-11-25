@@ -59,6 +59,7 @@ type view struct {
 	RobotsList []storage.RobotsState
 	Robots storage.RobotsState
 	RobotsChanges []storage.RobotsChange
+	RobotsEnabled, RobotsErrors, RobotsRootWarnings int
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -202,6 +203,15 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	if problems,err:=s.DB.DiagnosticProblems();err==nil {v.Problems=problems}
  if domainWarnings,err:=s.DB.DomainWarnings();err==nil {v.DomainWarnings=domainWarnings}
+ if robotsList,err:=s.DB.RobotsList();err==nil {
+  v.RobotsList=robotsList
+  for _,item:=range robotsList {
+   if !item.Enabled{continue}
+   v.RobotsEnabled++
+   if item.Status=="ERROR"{v.RobotsErrors++}
+   if item.RootBlocks!=""{v.RobotsRootWarnings++}
+  }
+ }
  if sitemaps,err:=s.DB.SitemapList();err==nil {
   v.Sitemaps=sitemaps
   for _,site:=range sitemaps {
