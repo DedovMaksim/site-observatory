@@ -70,7 +70,7 @@ func (d *DB) Diagnostic(id int64)(Diagnostic,error){
 }
 func (d *DB) Uptime(id int64,since time.Time)(UptimeStats,error){
  var s UptimeStats
- e:=d.QueryRow(`SELECT COUNT(*),COALESCE(SUM(success),0),COALESCE(AVG(latency_ms),0) FROM checks WHERE monitor_id=? AND checked_at>=?`,id,since.UTC().Format(time.RFC3339)).
+ e:=d.QueryRow(`SELECT COUNT(*),COALESCE(SUM(success),0),CAST(COALESCE(AVG(latency_ms),0) AS INTEGER) FROM checks WHERE monitor_id=? AND checked_at>=?`,id,since.UTC().Format(time.RFC3339)).
  Scan(&s.Total,&s.Successful,&s.AvgLatency)
  if s.Total>0 {s.Uptime=100*float64(s.Successful)/float64(s.Total)}
  return s,e
