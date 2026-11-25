@@ -60,6 +60,9 @@ type view struct {
 	Robots storage.RobotsState
 	RobotsChanges []storage.RobotsChange
 	RobotsEnabled, RobotsErrors, RobotsRootWarnings int
+	PageAuditConfigs []storage.PageAuditConfig
+	PageAuditResults []storage.PageAuditResult
+	PageAuditEvents []storage.PageAuditEvent
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -106,6 +109,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
 	s.mux.HandleFunc("GET /sitemaps", s.require(s.sitemapList))
 	s.mux.HandleFunc("GET /robots", s.require(s.robotsList))
+	s.mux.HandleFunc("GET /pages",s.require(s.pageAudits))
+	s.mux.HandleFunc("GET /pages/{id}",s.require(s.pageAuditDetail))
+	s.mux.HandleFunc("POST /pages/{id}/configure",s.require(s.pageAuditConfigure))
 	s.mux.HandleFunc("POST /robots/{id}/configure", s.require(s.robotsConfigure))
 	s.mux.HandleFunc("GET /robots/{id}/history", s.require(s.robotsHistory))
 	s.mux.HandleFunc("POST /sitemaps/{id}/configure", s.require(s.sitemapConfigure))
