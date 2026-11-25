@@ -2,6 +2,8 @@ package web
 
 import (
  "context"
+ "runtime"
+ "example.com/site-observatory/internal/version"
  "fmt"
  "net/http"
  "regexp"
@@ -16,7 +18,7 @@ var telegramChatID = regexp.MustCompile(`^-?[0-9]{1,25}$`)
 func (s *Server) telegramView(title, message, failure string) (view,error) {
  settings,err:=s.DB.GetTelegram()
  if err!=nil {return view{},err}
- return view{Title:title,Telegram:settings,TokenConfigured:settings.EncryptedToken!="",RelayEnabled:s.Notify.UsingRelay(),Message:message,Error:failure},nil
+ return view{Title:title,AppVersion:version.Current,Platform:runtime.GOOS+"/"+runtime.GOARCH,Telegram:settings,TokenConfigured:settings.EncryptedToken!="",RelayEnabled:s.Notify.UsingRelay(),Message:message,Error:failure},nil
 }
 func (s *Server) settings(w http.ResponseWriter,r *http.Request) {
  v,err:=s.telegramView("Настройки Telegram","","")
@@ -29,6 +31,7 @@ func (s *Server) saveTelegram(w http.ResponseWriter,r *http.Request) {
  original.Enabled=r.PostForm.Get("enabled")=="on"
  original.NotifyDown=r.PostForm.Get("notify_down")=="on"
  original.NotifyUp=r.PostForm.Get("notify_up")=="on"
+ if !s.Notify.UsingRelay() {
  original.ChatID=strings.TrimSpace(r.PostForm.Get("chat_id"))
  token:=strings.TrimSpace(r.PostForm.Get("bot_token"))
  if token!="" {
@@ -40,6 +43,7 @@ func (s *Server) saveTelegram(w http.ResponseWriter,r *http.Request) {
  }
  if original.ChatID!="" && !telegramChatID.MatchString(original.ChatID) {
   s.settingsError(w,r,"Chat ID должен быть числом, возможно отрицательным");return
+ }
  }
  if original.Enabled && !s.Notify.UsingRelay() && (original.ChatID=="" || original.EncryptedToken=="") {
   s.settingsError(w,r,"Для включения уведомлений укажите Bot Token и Chat ID");return
