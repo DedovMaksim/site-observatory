@@ -55,7 +55,7 @@ func publicIP(ip net.IP)bool{
 }
 func newClient(host string)*http.Client{
  transport:=&http.Transport{
-  DisableKeepAlives:true,Proxy:nil,TLSHandshakeTimeout:7*time.Second,
+  DisableKeepAlives:true,DisableCompression:true,Proxy:nil,TLSHandshakeTimeout:7*time.Second,
   DialContext:func(ctx context.Context,network,address string)(net.Conn,error){
    h,p,err:=net.SplitHostPort(address);if err!=nil{return nil,err}
    if !strings.EqualFold(h,host){return nil,errors.New("blocked host")}
