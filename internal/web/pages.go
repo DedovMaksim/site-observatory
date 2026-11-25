@@ -45,7 +45,9 @@ func(s *Server) pageAuditDetail(w http.ResponseWriter,r *http.Request){
  if e!=nil{http.Error(w,"database error",500);return}
  events,e:=s.DB.PageAuditEvents(id)
  if e!=nil{http.Error(w,"database error",500);return}
- v:=view{Title:"Аудит страниц",Monitor:monitor,PageAuditPage:page,PageAuditConfig:config,PageAuditIssues:issues,PageFilter:filter,PageSearch:search,PageAuditEvents:events}
+ alertPending,alertActive,e:=s.DB.PageAuditAlertSummary(id)
+ if e!=nil{http.Error(w,"database error",500);return}
+ v:=view{Title:"Аудит страниц",Monitor:monitor,PageAuditPage:page,PageAuditConfig:config,PageAuditIssues:issues,PageFilter:filter,PageSearch:search,PageAuditEvents:events,PageAlertPending:alertPending,PageAlertActive:alertActive}
  v.PageBefore=page.Page-1
  v.PageAfter=page.Page+1
  s.render(w,r,"pages-detail.html",v)
