@@ -258,8 +258,9 @@ redirect and public-IP security restrictions.
 **Limitations:** metadata extraction is a lightweight static HTML parser
 and does not execute JavaScript; dynamic client-rendered metadata may
 not be discovered. Canonical/noindex warnings are advisory, not indexing
-guarantees. This initial page audit does **not** send Telegram alerts.
-Sites with very large sitemaps are processed gradually over many cycles.
+guarantees. Confirmed critical changes can generate Telegram warnings (see
+SEO alerts and confirmation below). Sites with very large sitemaps are
+processed gradually over many cycles.
 
 
 ### Page audit interface and filters
