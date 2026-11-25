@@ -11,6 +11,7 @@ import (
 	"example.com/site-observatory/internal/monitor"
 	"example.com/site-observatory/internal/notify"
 	"example.com/site-observatory/internal/scheduler"
+	"example.com/site-observatory/internal/sitemapwatch"
 	"example.com/site-observatory/internal/storage"
 	"example.com/site-observatory/internal/web"
 	"log"
@@ -64,6 +65,7 @@ func main() {
 	go scheduler.New(db, checker).Run(ctx)
 	go diagnostics.NewRunner(db).Run(ctx)
 	go domainwatch.NewRunner(db).Run(ctx)
+	go sitemapwatch.New(db).Run(ctx)
 	go telegram.Run(ctx)
 	srv := &http.Server{Addr: cfg.Addr, Handler: app.Handler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 25 * time.Second, IdleTimeout: 60 * time.Second}
 	go func() {
