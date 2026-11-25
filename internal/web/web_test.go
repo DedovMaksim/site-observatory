@@ -4,6 +4,7 @@ import (
 	"html/template"
  "net/http"
  "net/http/httptest"
+ "strings"
 	"testing"
 )
 
@@ -30,4 +31,16 @@ func TestRoutesDoNotConflictWithAPI(t *testing.T) {
   _,pattern:=s.mux.Handler(req)
   if pattern!=tc.want{t.Errorf("%s %s: matched %q, want %q",tc.method,tc.path,pattern,tc.want)}
  }
+}
+
+func TestFooterCreditsProjectAuthor(t *testing.T) {
+  content, err := assets.ReadFile("templates/layout.html")
+  if err != nil { t.Fatal(err) }
+  footer := string(content)
+  if !strings.Contains(footer, "https://maksimdedov.ru/") || !strings.Contains(footer, "Максим Дедов") {
+    t.Fatal("footer is missing project author attribution")
+  }
+  if !strings.Contains(footer, `rel="noopener noreferrer"`) {
+    t.Fatal("external author link needs safe rel attributes")
+  }
 }
