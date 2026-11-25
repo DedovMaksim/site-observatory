@@ -77,3 +77,8 @@
 .robots-config .check{display:flex;gap:8px;align-items:center}
 .robots-config button{width:max-content}
 .robots-content{max-height:380px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:var(--bg);border:1px solid var(--border);padding:14px;border-radius:9px;font-size:12px}
+
+/* Opt-in page audit controls, v0.6 */
+.page-audit-config{display:grid;gap:8px;min-width:120px}
+.page-audit-config .check{display:flex;gap:8px;align-items:center}
+.page-audit-config button{width:max-content}
