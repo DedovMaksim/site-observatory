@@ -47,11 +47,14 @@ func updatePageAlerts(ctx context.Context, tx *sql.Tx, monitorID int64, old, cur
  var name string
  var enabled int
  err:=tx.QueryRowContext(ctx,`SELECT m.name,a.enabled FROM monitors m JOIN page_audit_settings a ON a.monitor_id=m.id WHERE m.id=?`,monitorID).Scan(&name,&enabled)
- if errors.Is(err,sql.ErrNoRows) || enabled!=1 {return nil}
+ if errors.Is(err,sql.ErrNoRows){return nil}
  if err!=nil{return err}
+ if enabled!=1{return nil}
  previousIssues:=pageAlertKinds(old)
  currentIssues:=pageAlertKinds(current)
  for _,kind:=range currentIssues {
+  // An HTTP failure must not resolve an existing title/noindex alert.
+  if kind.Name!="HTTP" && !(current.Status>=200 && current.Status<300 && current.Error=="" && current.IsHTML){continue}
   var state,confirmAt string
   var notified int
   err=tx.QueryRowContext(ctx,`SELECT state,confirm_at,notified FROM page_audit_alerts WHERE monitor_id=? AND url=? AND kind=?`,monitorID,current.URL,kind.Name).Scan(&state,&confirmAt,&notified)
@@ -85,8 +88,10 @@ func updatePageAlerts(ctx context.Context, tx *sql.Tx, monitorID int64, old, cur
     msg:=fmt.Sprintf("%s SEO-проблема подтверждена\nСайт: %s\nURL: %s\nПроблема: %s\nПодтверждена повторной проверкой.",kind.Severity,name,current.URL,kind.Description)
     // Do not send stale alerts if notifications were disabled at the time
     // of confirmation; preserve only the visible alert state.
-    if err=enqueueSitemapAlert(ctx,tx,msg);err!=nil{return err}
-    _,err=tx.ExecContext(ctx,`UPDATE page_audit_alerts SET state='ACTIVE',confirm_at='',notified=1 WHERE monitor_id=? AND url=? AND kind=?`,monitorID,current.URL,kind.Name)
+    var ready int
+    if err=tx.QueryRowContext(ctx,`SELECT COUNT(*) FROM telegram_settings WHERE id=1 AND enabled=1 AND chat_id<>'' AND token_ciphertext<>''`).Scan(&ready);err!=nil{return err}
+    if ready==1 {if err=enqueueSitemapAlert(ctx,tx,msg);err!=nil{return err}}
+    _,err=tx.ExecContext(ctx,`UPDATE page_audit_alerts SET state='ACTIVE',confirm_at='',notified=? WHERE monitor_id=? AND url=? AND kind=?`,ready,monitorID,current.URL,kind.Name)
     if err!=nil{return err}
    }
   }
