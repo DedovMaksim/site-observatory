@@ -185,8 +185,8 @@ func auditFilterSQL(filter PageAuditFilter)(string,[]any){
  args:=[]any{filter.MonitorID}
  if filter.Search!=""{
   // Literal substring matching: escape SQL LIKE wildcard characters.
-  escaped:=strings.NewReplacer(`\\`,`\\\\`,`%`,`\\%`,`_`,`\\_`).Replace(filter.Search)
-  where+=` AND (p.url LIKE ? ESCAPE '\\' OR p.title LIKE ? ESCAPE '\\')`
+  escaped:=strings.NewReplacer("!","!!","%","!%","_","!_").Replace(filter.Search)
+  where+=` AND (p.url LIKE ? ESCAPE '!' OR p.title LIKE ? ESCAPE '!')`
   args=append(args,"%"+escaped+"%","%"+escaped+"%")
  }
  switch filter.Status {
