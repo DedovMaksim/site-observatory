@@ -1,1 +1,130 @@
-{{define "detail.html"}}{{template "head" .}}<div class="heading"><div><a href="/">← Все сайты</a><h1>{{.Monitor.Name}} <span class="status {{.Monitor.Status}}">{{.Monitor.Status}}</span></h1><p class="muted">{{.Monitor.URL}}</p></div><div class="actions"><a class="button" href="/monitors/{{.Monitor.ID}}/edit">Изменить</a><form method="post" action="/monitors/{{.Monitor.ID}}/delete"><input type="hidden" name="csrf" value="{{.CSRF}}"><button class="danger">Удалить</button></form></div></div><section class="stats"><div class="card stat"><span>Последний HTTP</span><strong>{{.Monitor.LastCode}}</strong></div><div class="card stat"><span>Время ответа</span><strong>{{.Monitor.LastLatency}} <em>ms</em></strong></div><div class="card stat"><span>Интервал</span><strong>{{.Monitor.Interval}} <em>sec</em></strong></div><div class="card stat"><span>Ошибки подряд</span><strong>{{.Monitor.Failures}}</strong></div></section>{{if .Monitor.LastError}}<p class="alert">{{.Monitor.LastError}}</p>{{end}}<div class="card"><div class="cardhead"><h2>Последние 100 проверок</h2><span class="muted">Слева — более новые</span></div><div class="bars">{{range .Checks}}<span title="{{.CheckedAt}}: HTTP {{.Code}}, {{.Latency}} ms {{.Error}}" class="bar {{if .Success}}good{{else}}bad{{end}}"></span>{{else}}<p class="muted">Проверки ещё не выполнялись.</p>{{end}}</div><div class="tablewrap"><table><thead><tr><th>Время (UTC)</th><th>Результат</th><th>HTTP</th><th>Задержка</th><th>Ошибка</th></tr></thead><tbody>{{range .Checks}}<tr><td>{{.CheckedAt}}</td><td>{{if .Success}}<span class="up">OK</span>{{else}}<span class="down">Ошибка</span>{{end}}</td><td>{{.Code}}</td><td>{{.Latency}} ms</td><td>{{.Error}}</td></tr>{{else}}<tr><td colspan="5">Нет данных</td></tr>{{end}}</tbody></table></div></div><div class="card"><h2>Инциденты</h2><div class="tablewrap"><table><thead><tr><th>Начало (UTC)</th><th>Восстановление</th><th>Причина</th></tr></thead><tbody>{{range .Incidents}}<tr><td>{{.StartedAt}}</td><td>{{if .EndedAt}}{{.EndedAt}}{{else}}Активен{{end}}</td><td>{{.Reason}}</td></tr>{{else}}<tr><td colspan="3">Инцидентов нет</td></tr>{{end}}</tbody></table></div></div>{{template "foot" .}}{{end}}
+{{define "detail.html"}}
+{{template "head" .}}
+<div class="heading monitor-heading">
+  <div>
+    <a href="/">← Все сайты</a>
+    <h1>{{.Monitor.Name}} <span class="status {{.Monitor.Status}}">{{.Monitor.Status}}</span></h1>
+    <p class="muted break-text">{{.Monitor.URL}}</p>
+  </div>
+  <div class="actions">
+    <a class="button" href="/monitors/{{.Monitor.ID}}/edit">Изменить</a>
+    <form method="post" action="/monitors/{{.Monitor.ID}}/delete">
+      <input type="hidden" name="csrf" value="{{.CSRF}}">
+      <button class="danger">Удалить</button>
+    </form>
+  </div>
+</div>
+<section class="stats" aria-label="Основные показатели">
+  <div class="card stat"><span>Последний HTTP</span><strong>{{.Monitor.LastCode}}</strong></div>
+  <div class="card stat"><span>Время ответа</span><strong>{{.Monitor.LastLatency}} <em>ms</em></strong></div>
+  <div class="card stat"><span>Интервал</span><strong>{{.Monitor.Interval}} <em>sec</em></strong></div>
+  <div class="card stat"><span>Ошибки подряд</span><strong>{{.Monitor.Failures}}</strong></div>
+</section>
+{{if .Monitor.LastError}}<p class="alert">{{.Monitor.LastError}}</p>{{end}}
+<section class="card monitor-overview" aria-labelledby="overview-title">
+  <div class="cardhead"><h2 id="overview-title">Доступность и скорость</h2><span class="muted">Последние 24 часа</span></div>
+  <div class="monitor-metrics">
+    <div class="monitor-metric">
+      <span class="muted">Успешные проверки</span>
+      {{if .Stats.Total}}<strong class="up">{{printf "%.2f" .Stats.Uptime}}%</strong>{{else}}<strong>—</strong>{{end}}
+      <small>{{.Stats.Successful}} из {{.Stats.Total}} проверок</small>
+    </div>
+    <div class="monitor-metric">
+      <span class="muted">Средний отклик</span>
+      {{if .Stats.Total}}<strong>{{.Stats.AvgLatency}} <em>мс</em></strong>{{else}}<strong>—</strong>{{end}}
+      <small>По проверкам за 24 часа</small>
+    </div>
+  </div>
+  <div class="chart-heading"><h3>Время ответа</h3><span class="muted">Последние 100 проверок · мс</span></div>
+  {{if .GraphPoints}}
+    <svg viewBox="0 0 500 110" role="img" aria-label="График времени ответа по последним проверкам" class="latency-chart" preserveAspectRatio="none">
+      <line x1="0" y1="100" x2="500" y2="100" stroke="currentColor" opacity=".25"/>
+      <polyline fill="none" stroke="var(--green)" stroke-width="2.5" vector-effect="non-scaling-stroke" points="{{.GraphPoints}}"/>
+    </svg>
+  {{else}}<p class="muted">Проверок ещё нет.</p>{{end}}
+</section>
+<section class="card" aria-labelledby="diagnostics-title">
+  <div class="cardhead"><h2 id="diagnostics-title">Техническая диагностика</h2><span class="muted">SSL · DNS · SEO</span></div>
+  {{if .HasDiagnostic}}
+    <p class="muted diagnostic-timestamp">Последняя диагностика: {{.Diagnostic.CheckedAt}} (UTC) · Обновляется примерно раз в час</p>
+    <div class="diagnostic-grid">
+      <section>
+        <div class="diagnostic-heading"><h3>SSL / TLS</h3><span class="diagnostic-value">{{.Diagnostic.TLSStatus}}</span></div>
+        {{if .Diagnostic.TLSExpiry}}
+          <dl class="diagnostic-facts"><dt>Действителен до</dt><dd>{{.Diagnostic.TLSExpiry}}</dd><dt>Осталось</dt><dd>{{.Diagnostic.TLSDays}} дн.</dd></dl>
+        {{else}}<p class="muted">Нет данных о сертификате</p>{{end}}
+      </section>
+      <section>
+        <div class="diagnostic-heading"><h3>DNS</h3>{{if .Diagnostic.DNSChanged}}<span class="diagnostic-warning">Изменён</span>{{else}}<span class="diagnostic-value">A / AAAA</span>{{end}}</div>
+        <p class="break-text">{{if .Diagnostic.DNSSummary}}{{.Diagnostic.DNSSummary}}{{else}}<span class="muted">Данные отсутствуют</span>{{end}}</p>
+        {{if .Diagnostic.DNSChanged}}<p class="down">IP-адреса изменились с прошлой проверки</p>{{end}}
+      </section>
+      <section>
+        <div class="diagnostic-heading"><h3>SEO</h3><span class="diagnostic-value">{{.Diagnostic.SEOStatus}}</span></div>
+        <dl class="diagnostic-facts">
+          <dt>Title</dt><dd class="break-text">{{if .Diagnostic.Title}}{{.Diagnostic.Title}}{{else}}<span class="muted">Не найден</span>{{end}}</dd>
+          <dt>Canonical</dt><dd class="break-text">{{if .Diagnostic.Canonical}}{{.Diagnostic.Canonical}}{{else}}<span class="muted">Не указан</span>{{end}}</dd>
+          <dt>Robots</dt><dd class="break-text">{{if .Diagnostic.Robots}}{{.Diagnostic.Robots}}{{else}}<span class="muted">Не указан</span>{{end}}</dd>
+        </dl>
+      </section>
+    </div>
+    {{if .Diagnostic.Error}}<p class="alert">{{.Diagnostic.Error}}</p>{{end}}
+  {{else}}
+    <p class="muted">Диагностика ещё не выполнялась. Результаты появятся после первой фоновой проверки.</p>
+  {{end}}
+</section>
+<section class="card domain-detail" aria-labelledby="domain-title"><div class="cardhead"><h2 id="domain-title">Регистрация домена</h2><a href="/domains">Управление доменами</a></div>{{if .HasDomain}}<p><strong>{{.Domain.Domain}}</strong> · {{if .Domain.HasDate}}{{.Domain.EffectiveDate}} (<span class="domain-status {{if le .Domain.DaysLeft 7}}domain-critical{{else if le .Domain.DaysLeft 30}}domain-warning{{else}}domain-safe{{end}}">{{.Domain.DaysLeft}} дн.</span>){{else}}<span class="muted">Дата окончания неизвестна</span>{{end}}</p><p class="muted">Источник: {{if .Domain.Source}}{{.Domain.Source}}{{else}}не определён{{end}}{{if .Domain.LastChecked}} · Проверено {{.Domain.LastChecked}} UTC{{end}}</p>{{if .Domain.LastError}}<p class="muted break-text">RDAP: {{.Domain.LastError}}</p>{{end}}{{else}}<p class="muted">Для этого монитора невозможно определить регистрируемый домен.</p>{{end}}</section>
+<section class="card" aria-labelledby="sitemap-title">
+<div class="cardhead"><h2 id="sitemap-title">Sitemap.xml</h2><a href="/sitemaps">Настройки</a></div>
+{{if .Sitemap.Enabled}}
+<p><strong>{{.Sitemap.Status}}</strong> · {{.Sitemap.Total}} URL · {{.Sitemap.Files}} XML-файлов</p>
+<p class="muted">{{if .Sitemap.LastChecked}}Последняя проверка: {{.Sitemap.LastChecked}} UTC{{else}}Проверка ещё не выполнялась{{end}}</p>
+<p>Изменения: <span class="up">+{{.Sitemap.Added}}</span> / <span class="down">−{{.Sitemap.Removed}}</span> · <a href="/sitemaps/{{.Monitor.ID}}/changes">История URL</a></p>
+{{if .Sitemap.Error}}<p class="alert break-text">{{.Sitemap.Error}}</p>{{end}}
+{{else}}<p class="muted">Мониторинг sitemap отключён. <a href="/sitemaps">Включить</a></p>{{end}}
+</section>
+<section class="card" aria-labelledby="robots-title"><div class="cardhead"><h2 id="robots-title">Robots.txt</h2><a href="/robots">Настройки</a></div>
+{{if .Robots.Enabled}}
+<p>Статус: {{if eq .Robots.Status "OK"}}<span class="up">OK</span>{{else if eq .Robots.Status "ERROR"}}<span class="down">ERROR</span>{{else}}<span class="muted">{{.Robots.Status}}</span>{{end}}</p>
+{{if .Robots.RootBlocks}}<p class="down">Внимание: Disallow: / для {{.Robots.RootBlocks}}</p>{{end}}
+<p class="muted">Последняя проверка: {{if .Robots.LastChecked}}{{.Robots.LastChecked}} UTC{{else}}Ещё не выполнялась{{end}}</p>
+<a href="/robots/{{.Monitor.ID}}/history">История robots.txt</a>
+{{if .Robots.LastError}}<p class="alert">{{.Robots.LastError}}</p>{{end}}
+{{else}}<p class="muted">Мониторинг robots.txt отключён. <a href="/robots">Включить</a></p>{{end}}</section>
+<section class="card monitor-history" aria-labelledby="history-title">
+  <div class="cardhead"><h2 id="history-title">История проверок</h2><span class="muted">Последние 100</span></div>
+  <div class="bars" aria-label="Лента последних проверок">
+    {{range .Checks}}<span title="{{.CheckedAt}}: HTTP {{.Code}}, {{.Latency}} ms {{.Error}}" class="bar {{if .Success}}good{{else}}bad{{end}}"></span>{{else}}<p class="muted">Проверки ещё не выполнялись.</p>{{end}}
+  </div>
+  <details class="monitor-details">
+    <summary>Показать подробную таблицу проверок</summary>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Время (UTC)</th><th>Результат</th><th>HTTP</th><th>Задержка</th><th>Ошибка</th></tr></thead>
+      <tbody>{{range .Checks}}<tr><td>{{.CheckedAt}}</td><td>{{if .Success}}<span class="up">OK</span>{{else}}<span class="down">Ошибка</span>{{end}}</td><td>{{.Code}}</td><td>{{.Latency}} ms</td><td class="break-text">{{.Error}}</td></tr>{{else}}<tr><td colspan="5">Нет данных</td></tr>{{end}}</tbody>
+    </table></div>
+  </details>
+</section>
+<section class="card monitor-incidents" aria-labelledby="incidents-title">
+  <div class="cardhead">
+    <h2 id="incidents-title">Инциденты</h2>
+    <span class="muted">Последние {{len .Incidents}} из 50 возможных записей</span>
+  </div>
+  {{if gt .ActiveIncidents 0}}
+    <p class="incident-active-summary" role="status">Активных инцидентов: <strong>{{.ActiveIncidents}}</strong></p>
+  {{else}}
+    <p class="muted incident-status-ok">Активных инцидентов нет</p>
+  {{end}}
+  {{if .Incidents}}
+  <details class="monitor-details">
+    <summary>Показать историю инцидентов ({{len .Incidents}})</summary>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Начало (UTC)</th><th>Восстановление</th><th>Причина</th></tr></thead>
+      <tbody>{{range .Incidents}}<tr><td>{{.StartedAt}}</td><td>{{if .EndedAt}}{{.EndedAt}}{{else}}<span class="down">Активен</span>{{end}}</td><td class="break-text">{{.Reason}}</td></tr>{{end}}</tbody>
+    </table></div>
+  </details>
+  {{else}}
+    <p class="muted">История инцидентов пока пуста.</p>
+  {{end}}
+</section>
+{{template "foot" .}}
+{{end}}

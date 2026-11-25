@@ -2,6 +2,7 @@ package web
 
 import (
 	"database/sql"
+	"math"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -36,10 +37,29 @@ type view struct {
 	Monitor                     storage.Monitor
 	Checks                      []storage.Check
 	Incidents                   []storage.Incident
+	ActiveIncidents             int
 	Up, Down, Unknown           int
 	Editing                     bool
 	Telegram                    storage.TelegramSettings
 	TokenConfigured             bool
+	Diagnostic storage.Diagnostic
+	HasDiagnostic bool
+	Problems []storage.DiagnosticProblem
+	Stats storage.UptimeStats
+	GraphPoints string
+	Domains []storage.DomainExpiry
+	Domain storage.DomainExpiry
+	HasDomain bool
+	DomainWarnings []storage.DomainExpiry
+	Sitemaps []storage.SitemapState
+	Sitemap storage.SitemapState
+	SitemapChanges []storage.SitemapChange
+	SitemapSnapshots []storage.SitemapSnapshot
+	SitemapEnabled, SitemapTotal, SitemapErrors, SitemapAdded, SitemapRemoved int
+	RobotsList []storage.RobotsState
+	Robots storage.RobotsState
+	RobotsChanges []storage.RobotsChange
+	RobotsEnabled, RobotsErrors, RobotsRootWarnings int
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -83,6 +103,14 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /monitors/{id}/edit", s.require(s.update))
 	s.mux.HandleFunc("POST /monitors/{id}/delete", s.require(s.delete))
 	s.mux.HandleFunc("GET /incidents", s.require(s.incidents))
+	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
+	s.mux.HandleFunc("GET /sitemaps", s.require(s.sitemapList))
+	s.mux.HandleFunc("GET /robots", s.require(s.robotsList))
+	s.mux.HandleFunc("POST /robots/{id}/configure", s.require(s.robotsConfigure))
+	s.mux.HandleFunc("GET /robots/{id}/history", s.require(s.robotsHistory))
+	s.mux.HandleFunc("POST /sitemaps/{id}/configure", s.require(s.sitemapConfigure))
+	s.mux.HandleFunc("GET /sitemaps/{id}/changes", s.require(s.sitemapChanges))
+	s.mux.HandleFunc("POST /domains/{name}/manual", s.require(s.domainSaveManual))
 	s.mux.HandleFunc("GET /settings", s.require(s.settings))
 	s.mux.HandleFunc("POST /settings/telegram", s.require(s.saveTelegram))
 	s.mux.HandleFunc("POST /settings/telegram/test", s.require(s.testTelegram))
@@ -120,7 +148,7 @@ func (s *Server) require(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 func (s *Server) render(w http.ResponseWriter, r *http.Request, page string, v view) {
-	v.CSRF = s.Auth.CSRF(s.token(r))
+	if session := s.token(r); session != "" { v.CSRF = s.Auth.CSRF(session) } else { v.CSRF = "" }
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if e := s.templates.ExecuteTemplate(w, page, v); e != nil {
 		log.Printf("render %s: %v", page, e)
@@ -173,6 +201,27 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 			v.Unknown++
 		}
 	}
+	if problems,err:=s.DB.DiagnosticProblems();err==nil {v.Problems=problems}
+ if domainWarnings,err:=s.DB.DomainWarnings();err==nil {v.DomainWarnings=domainWarnings}
+ if robotsList,err:=s.DB.RobotsList();err==nil {
+  v.RobotsList=robotsList
+  for _,item:=range robotsList {
+   if !item.Enabled{continue}
+   v.RobotsEnabled++
+   if item.Status=="ERROR"{v.RobotsErrors++}
+   if item.RootBlocks!=""{v.RobotsRootWarnings++}
+  }
+ }
+ if sitemaps,err:=s.DB.SitemapList();err==nil {
+  v.Sitemaps=sitemaps
+  for _,site:=range sitemaps {
+   if !site.Enabled {continue}
+   v.SitemapEnabled++
+   v.SitemapTotal+=site.Total
+   if site.Status=="ERROR"{v.SitemapErrors++}
+   if site.Status=="OK"{v.SitemapAdded+=site.Added;v.SitemapRemoved+=site.Removed}
+  }
+ }
 	s.render(w, r, "dashboard.html", v)
 }
 func (s *Server) newForm(w http.ResponseWriter, r *http.Request) {
@@ -212,12 +261,16 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "form.html", view{Title: "Новый монитор", Monitor: m, Error: e.Error()})
 		return
 	}
-	id, e := s.DB.CreateMonitor(m.Name, m.URL, m.Interval, m.Timeout, m.Enabled)
+	manualDate:=strings.TrimSpace(r.PostForm.Get("domain_expiry"))
+ if !validDomainDate(manualDate) {w.WriteHeader(400);s.render(w,r,"form.html",view{Title:"Новый монитор",Monitor:m,Error:"Дата домена должна быть в формате YYYY-MM-DD"});return}
+ id, e := s.DB.CreateMonitor(m.Name, m.URL, m.Interval, m.Timeout, m.Enabled)
 	if e != nil {
 		http.Error(w, e.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/monitors/%d", id), 303)
+	if e=s.DB.SyncMonitorDomain(id,m.URL);e!=nil{http.Error(w,"domain mapping error",500);return}
+ if manualDate!=""{if domain,err:=s.DB.DomainForMonitor(id);err==nil {if err=s.DB.SaveDomainManual(domain.Domain,manualDate);err!=nil {http.Error(w,"domain date save error",500);return}}}
+ http.Redirect(w, r, fmt.Sprintf("/monitors/%d", id), 303)
 }
 func id(r *http.Request) (int64, error) { return strconv.ParseInt(r.PathValue("id"), 10, 64) }
 func (s *Server) fetch(w http.ResponseWriter, r *http.Request) (storage.Monitor, bool) {
@@ -248,14 +301,24 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, e.Error(), 500)
 		return
 	}
-	s.render(w, r, "detail.html", view{Title: m.Name, Monitor: m, Checks: checks, Incidents: incidents})
+	v := view{Title: m.Name, Monitor: m, Checks: checks, Incidents: incidents}
+ for _,incident := range incidents { if incident.EndedAt == "" { v.ActiveIncidents++ } }
+ if diag, err := s.DB.Diagnostic(m.ID); err == nil {v.Diagnostic=diag;v.HasDiagnostic=true}
+ if stats, err := s.DB.Uptime(m.ID,time.Now().Add(-24*time.Hour)); err == nil {v.Stats=stats}
+ if latencies,err:=s.DB.LastLatencies(m.ID,100);err==nil {v.GraphPoints=latencyGraph(latencies)}
+ if domain,err:=s.DB.DomainForMonitor(m.ID);err==nil {v.Domain=domain;v.HasDomain=true}
+ if sitemapState,err:=s.DB.SitemapForMonitor(m.ID);err==nil{v.Sitemap=sitemapState}
+ if robotsState,err:=s.DB.RobotsForMonitor(m.ID);err==nil{v.Robots=robotsState}
+ s.render(w,r,"detail.html",v)
 }
 func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
 	m, ok := s.fetch(w, r)
 	if !ok {
 		return
 	}
-	s.render(w, r, "form.html", view{Title: "Редактировать", Monitor: m, Editing: true})
+	v:=view{Title: "Редактировать", Monitor: m, Editing: true}
+ if domain,err:=s.DB.DomainForMonitor(m.ID);err==nil{v.Domain=domain;v.HasDomain=true}
+ s.render(w,r,"form.html",v)
 }
 func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 	old, ok := s.fetch(w, r)
@@ -269,11 +332,15 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 		s.render(w, r, "form.html", view{Title: "Редактировать", Monitor: m, Editing: true, Error: e.Error()})
 		return
 	}
-	if e = s.DB.UpdateMonitor(old.ID, m.Name, m.URL, m.Interval, m.Timeout, m.Enabled); e != nil {
+	manualDate:=strings.TrimSpace(r.PostForm.Get("domain_expiry"))
+ if !validDomainDate(manualDate) {w.WriteHeader(400);s.render(w,r,"form.html",view{Title:"Редактировать",Monitor:m,Editing:true,Error:"Дата домена должна быть в формате YYYY-MM-DD"});return}
+ if e = s.DB.UpdateMonitor(old.ID, m.Name, m.URL, m.Interval, m.Timeout, m.Enabled); e != nil {
 		http.Error(w, e.Error(), 500)
 		return
 	}
-	http.Redirect(w, r, fmt.Sprintf("/monitors/%d", old.ID), 303)
+	if e=s.DB.SyncMonitorDomain(old.ID,m.URL);e!=nil{http.Error(w,"domain mapping error",500);return}
+ if domain,err:=s.DB.DomainForMonitor(old.ID);err==nil{if err=s.DB.SaveDomainManual(domain.Domain,manualDate);err!=nil {http.Error(w,"domain date save error",500);return}}
+ http.Redirect(w, r, fmt.Sprintf("/monitors/%d", old.ID), 303)
 }
 func (s *Server) delete(w http.ResponseWriter, r *http.Request) {
 	m, ok := s.fetch(w, r)
@@ -317,3 +384,18 @@ func (s *Server) apiStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 var _ = sql.ErrNoRows
+
+func latencyGraph(series []int64)string {
+ if len(series)==0{return ""}
+ maxVal:=int64(1)
+ for _,v:=range series {if v>maxVal {maxVal=v}}
+ points:=make([]string,0,len(series))
+ for i,v:=range series {
+  x:=0
+  if len(series)>1 {x=int(math.Round(float64(i)*500/float64(len(series)-1)))}
+  y:=100-int(math.Round(float64(v)*95/float64(maxVal)))
+  if y<0 {y=0}
+  points=append(points,strconv.Itoa(x)+","+strconv.Itoa(y))
+ }
+ return strings.Join(points," ")
+}

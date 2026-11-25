@@ -46,6 +46,11 @@ func Open(path string) (*DB, error) {
 	s := &DB{db}
 	if err := s.Migrate(); err != nil { db.Close(); return nil,err }
  if err := s.MigrateTelegram(); err != nil { db.Close(); return nil,err }
+ if err := s.MigrateDiagnostics(); err != nil { db.Close(); return nil,err }
+ if err := s.MigrateDomains(); err != nil { db.Close(); return nil,err }
+ if err := s.ReconcileDomains(); err != nil { db.Close(); return nil,err }
+ if err := s.MigrateSitemap(); err != nil { db.Close(); return nil,err }
+ if err := s.MigrateRobots(); err != nil { db.Close(); return nil,err }
  return s,nil
 }
 func (d *DB) Migrate() error {
