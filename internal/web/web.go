@@ -56,6 +56,9 @@ type view struct {
 	SitemapChanges []storage.SitemapChange
 	SitemapSnapshots []storage.SitemapSnapshot
 	SitemapEnabled, SitemapTotal, SitemapErrors, SitemapAdded, SitemapRemoved int
+	RobotsList []storage.RobotsState
+	Robots storage.RobotsState
+	RobotsChanges []storage.RobotsChange
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
@@ -101,6 +104,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /incidents", s.require(s.incidents))
 	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
 	s.mux.HandleFunc("GET /sitemaps", s.require(s.sitemapList))
+	s.mux.HandleFunc("GET /robots", s.require(s.robotsList))
+	s.mux.HandleFunc("POST /robots/{id}/configure", s.require(s.robotsConfigure))
+	s.mux.HandleFunc("GET /robots/{id}/history", s.require(s.robotsHistory))
 	s.mux.HandleFunc("POST /sitemaps/{id}/configure", s.require(s.sitemapConfigure))
 	s.mux.HandleFunc("GET /sitemaps/{id}/changes", s.require(s.sitemapChanges))
 	s.mux.HandleFunc("POST /domains/{name}/manual", s.require(s.domainSaveManual))
@@ -292,6 +298,7 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
  if latencies,err:=s.DB.LastLatencies(m.ID,100);err==nil {v.GraphPoints=latencyGraph(latencies)}
  if domain,err:=s.DB.DomainForMonitor(m.ID);err==nil {v.Domain=domain;v.HasDomain=true}
  if sitemapState,err:=s.DB.SitemapForMonitor(m.ID);err==nil{v.Sitemap=sitemapState}
+ if robotsState,err:=s.DB.RobotsForMonitor(m.ID);err==nil{v.Robots=robotsState}
  s.render(w,r,"detail.html",v)
 }
 func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
