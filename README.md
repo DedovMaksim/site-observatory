@@ -212,3 +212,27 @@ monitor rather than full page HTML.
 
 Back up `data/` before first startup with this version. Local testing is
 recommended before deploying to a VDS.
+
+
+## Robots.txt monitoring (v0.5 beta)
+
+Open `/robots` and opt in for each monitored site. The worker fetches the
+site origin's `/robots.txt` about once a day. As with sitemap scanning,
+requests are restricted to the monitored hostname, use public DNS targets,
+enforce timeouts and cap the response to 512 KiB.
+
+The first successful scan creates a baseline; subsequent changed content
+is added to a bounded 100-event history view at `/robots/<id>/history`.
+The current raw file, discovered `Sitemap:` directives and simple
+`Disallow: /` warning signals are available there.
+
+Telegram notifications are queued on transitions to unavailable and
+recovered, newly introduced literal root `Disallow: /` for the wildcard
+`*`, `Googlebot` or `Yandex` groups, and changed `Sitemap:` directives.
+Repeated identical failures do not generate new messages.
+
+**Important:** The early-warning parser is not a full RFC 9309 rules
+evaluator. A root disallow can be overridden by a more specific `Allow`
+rule, and other specific crawler groups may have different effective
+policies. Treat warnings as prompts to inspect robots.txt, not definitive
+claims about indexing or crawling.
