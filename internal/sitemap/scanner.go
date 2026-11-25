@@ -26,6 +26,7 @@ type Result struct {
  URLs []string
  Files int
 }
+func DefaultURL(siteURL string)string {u,err:=url.Parse(siteURL);if err!=nil{return ""};return u.Scheme+"://"+u.Host+"/sitemap.xml"}
 type Scanner struct {
  Client *http.Client
 }
