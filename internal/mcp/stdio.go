@@ -11,7 +11,6 @@ import (
  "errors"
  "fmt"
  "io"
- "strconv"
 
  "example.com/site-observatory/internal/observatory"
 )
@@ -111,7 +110,7 @@ func (s *Server) handle(line []byte)*response{
   }else{
    b,e:=json.Marshal(value)
    if e!=nil{result=map[string]any{"isError":true,"content":[]any{map[string]any{"type":"text","text":"serialization failed"}}}
-   }else{result=map[string]any{"content":[]any{map[string]any{"type":"text","text":string(b)}},"structuredContent":value,"isError":false}}
+   }else{result=map[string]any{"content":[]any{map[string]any{"type":"text","text":string(b)}},"structuredContent":map[string]any{"data":value},"isError":false}}
   }
  default:
   r:=rpcFailure(req.ID,-32601,"method not found");return &r
@@ -135,4 +134,3 @@ func(s *Server) Serve(in io.Reader,out io.Writer)error{
  }
  return scanner.Err()
 }
-var _ = strconv.Itoa
