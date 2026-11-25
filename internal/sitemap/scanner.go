@@ -151,3 +151,22 @@ func fetchXML(ctx context.Context,client *http.Client,raw string,into *sitemapXM
  if err:=xml.Unmarshal(content,into);err!=nil{return fmt.Errorf("invalid sitemap XML: %w",err)}
  return nil
 }
+
+// FetchRobots reads only the fixed /robots.txt path on the monitored origin,
+// using the same DNS, redirect and private-address protections as sitemap scans.
+func FetchRobots(ctx context.Context,siteURL string)(string,error){
+ site,err:=url.Parse(siteURL)
+ if err!=nil||site.Hostname()==""||(site.Scheme!="https"&&site.Scheme!="http")||site.User!=nil{return "",errors.New("invalid monitored site")}
+ target:=site.Scheme+"://"+site.Host+"/robots.txt"
+ if _,err=validateURL(target,site.Hostname());err!=nil{return "",err}
+ req,err:=http.NewRequestWithContext(ctx,"GET",target,nil);if err!=nil{return "",err}
+ req.Header.Set("User-Agent","SiteObservatory/0.5 (+robots-monitor)")
+ resp,err:=newClient(site.Hostname()).Do(req);if err!=nil{return "",err}
+ defer resp.Body.Close()
+ if resp.StatusCode!=200{return "",fmt.Errorf("robots.txt HTTP %d",resp.StatusCode)}
+ const limit=512<<10
+ data,err:=io.ReadAll(io.LimitReader(resp.Body,limit+1))
+ if err!=nil{return "",err}
+ if len(data)>limit{return "",errors.New("robots.txt exceeds 512 KiB limit")}
+ return string(data),nil
+}
