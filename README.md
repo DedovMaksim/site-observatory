@@ -210,3 +210,19 @@ The project is currently an evolving **v0.8 Beta**. Future work may include hard
 Developed by **[Maksim Dedov](https://maksimdedov.ru/)**. Source repository: [DedovMaksim/site-observatory](https://github.com/DedovMaksim/site-observatory).
 
 **License:** not selected. The repository is currently private; no open-source licensing rights should be assumed. A LICENSE file and public release policy can be added separately if the project is published.
+
+
+## Telegram HTTPS Relay (optional)
+
+When a hosting provider cannot reach `api.telegram.org:443`, Site Observatory can send notifications through an existing, trusted HTTPS Relay. The default remains direct Telegram Bot API delivery.
+
+Configure these two environment variables together (for a systemd deployment, put them in `/etc/site-observatory.env` with restricted permissions):
+
+```dotenv
+RELAY_URL=https://site-pinger-telegram.dedovmaxim.workers.dev
+RELAY_SECRET=REPLACE_WITH_YOUR_PRIVATE_RELAY_SECRET
+```
+
+This Relay uses an authenticated `POST` request with `Authorization: Bearer <RELAY_SECRET>`, `Content-Type: application/json`, and the body `{ "text": "notification" }`. The Worker already stores its own Telegram Bot Token and Chat ID: Site Observatory does **not** send its local Bot Token or Chat ID to the Worker. The recipient is therefore configured **on the Worker side**. Relay mode is active only when both environment variables are set; a missing variable prevents service startup rather than silently falling back to direct delivery. Incoming error messages and logs do not include the secret, and HTTP redirects are not followed for Relay requests.
+
+After updating the environment and restarting `site-observatory.service`, open the web **Settings** page and send a test message. Existing Telegram notification settings (enabled, incident and recovery flags), the durable outbox, retries and other site monitoring functions remain unchanged. **Never commit or share `RELAY_SECRET`**. Use a long unique secret and rotate it if exposed.

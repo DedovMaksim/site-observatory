@@ -27,6 +27,8 @@ type Telegram struct {
  key []byte
  client *http.Client
  apiURL string
+ relayURL string
+ relaySecret string
 }
 func New(db *storage.DB, dataDir string) (*Telegram,error) {
  p:=filepath.Join(dataDir,"telegram.key")
@@ -37,7 +39,16 @@ func New(db *storage.DB, dataDir string) (*Telegram,error) {
   if err=os.WriteFile(p,key,0600);err!=nil{return nil,err}
  } else if err!=nil {return nil,err}
  if len(key)!=32{return nil,errors.New("invalid telegram.key: expected 32 bytes")}
- return &Telegram{DB:db,key:key,client:&http.Client{Timeout:10*time.Second},apiURL:"https://api.telegram.org"},nil
+ relayURL:=strings.TrimSpace(os.Getenv("RELAY_URL"))
+ relaySecret:=os.Getenv("RELAY_SECRET")
+ if (relayURL=="") != (relaySecret=="") {return nil,errors.New("both RELAY_URL and RELAY_SECRET must be configured together")}
+ if relayURL!="" {
+  target,err:=url.Parse(relayURL)
+  if err!=nil || target.Scheme!="https" || target.Host=="" || target.User!=nil || target.Fragment!="" {
+   return nil,errors.New("RELAY_URL must be a valid HTTPS URL without credentials or fragments")
+  }
+ }
+ return &Telegram{DB:db,key:key,client:&http.Client{Timeout:10*time.Second},apiURL:"https://api.telegram.org",relayURL:relayURL,relaySecret:relaySecret},nil
 }
 func (t *Telegram) Encrypt(token string)(string,error) {
  block,err:=aes.NewCipher(t.key);if err!=nil{return "",err}
@@ -56,7 +67,25 @@ func (t *Telegram) decrypt(ciphertext string)(string,error) {
  if err!=nil{return "",errors.New("token decryption failed; restore telegram.key from backup")}
  return string(plain),nil
 }
+func (t *Telegram) UsingRelay() bool { return t.relayURL!="" }
+
+func (t *Telegram) sendRelay(ctx context.Context,message string) error {
+ body,err:=json.Marshal(map[string]string{"text":message});if err!=nil{return err}
+ req,err:=http.NewRequestWithContext(ctx,"POST",t.relayURL,bytes.NewReader(body))
+ if err!=nil{return errors.New("Relay request initialization failed")}
+ req.Header.Set("Content-Type","application/json")
+ req.Header.Set("Authorization","Bearer "+t.relaySecret)
+ relayClient:=*t.client
+ relayClient.CheckRedirect=func(_ *http.Request,_ []*http.Request) error {return http.ErrUseLastResponse}
+ res,err:=relayClient.Do(req)
+ if err!=nil{return errors.New("Relay connection failed")}
+ defer res.Body.Close()
+ _,_ = io.Copy(io.Discard,io.LimitReader(res.Body,4096))
+ if res.StatusCode<200 || res.StatusCode>=300 {return fmt.Errorf("Relay HTTP %d",res.StatusCode)}
+ return nil
+}
 func (t *Telegram) Send(ctx context.Context,s storage.TelegramSettings,message string) error {
+ if t.UsingRelay(){return t.sendRelay(ctx,message)}
  if s.ChatID=="" || s.EncryptedToken=="" {return errors.New("configure Telegram token and Chat ID")}
  token,err:=t.decrypt(s.EncryptedToken);if err!=nil{return err}
  // The token is never included in the returned error or logs.
@@ -86,7 +115,7 @@ func (t *Telegram) Run(ctx context.Context) {
  }
 }
 func (t *Telegram) process(ctx context.Context) {
- s,err:=t.DB.GetTelegram();if err!=nil || !s.Enabled || s.EncryptedToken=="" || s.ChatID=="" {return}
+ s,err:=t.DB.GetTelegram();if err!=nil || !s.Enabled || (!t.UsingRelay() && (s.EncryptedToken=="" || s.ChatID=="")) {return}
  m,err:=t.DB.NextTelegramMessage(ctx);if err!=nil{return}
  sendCtx,cancel:=context.WithTimeout(ctx,12*time.Second)
  err=t.Send(sendCtx,s,m.Text)

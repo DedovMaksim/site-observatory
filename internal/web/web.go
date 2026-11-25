@@ -42,7 +42,7 @@ type view struct {
 	Up, Down, Unknown           int
 	Editing                     bool
 	Telegram                    storage.TelegramSettings
-	TokenConfigured             bool
+	TokenConfigured, RelayEnabled bool
 	Diagnostic storage.Diagnostic
 	HasDiagnostic bool
 	Problems []storage.DiagnosticProblem

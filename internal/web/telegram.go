@@ -16,7 +16,7 @@ var telegramChatID = regexp.MustCompile(`^-?[0-9]{1,25}$`)
 func (s *Server) telegramView(title, message, failure string) (view,error) {
  settings,err:=s.DB.GetTelegram()
  if err!=nil {return view{},err}
- return view{Title:title,Telegram:settings,TokenConfigured:settings.EncryptedToken!="",Message:message,Error:failure},nil
+ return view{Title:title,Telegram:settings,TokenConfigured:settings.EncryptedToken!="",RelayEnabled:s.Notify.UsingRelay(),Message:message,Error:failure},nil
 }
 func (s *Server) settings(w http.ResponseWriter,r *http.Request) {
  v,err:=s.telegramView("Настройки Telegram","","")
@@ -41,7 +41,7 @@ func (s *Server) saveTelegram(w http.ResponseWriter,r *http.Request) {
  if original.ChatID!="" && !telegramChatID.MatchString(original.ChatID) {
   s.settingsError(w,r,"Chat ID должен быть числом, возможно отрицательным");return
  }
- if original.Enabled && (original.ChatID=="" || original.EncryptedToken=="") {
+ if original.Enabled && !s.Notify.UsingRelay() && (original.ChatID=="" || original.EncryptedToken=="") {
   s.settingsError(w,r,"Для включения уведомлений укажите Bot Token и Chat ID");return
  }
  if err=s.DB.SaveTelegram(original);err!=nil {http.Error(w,"database error",500);return}
