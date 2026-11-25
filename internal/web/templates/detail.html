@@ -91,6 +91,9 @@
 <a href="/robots/{{.Monitor.ID}}/history">История robots.txt</a>
 {{if .Robots.LastError}}<p class="alert">{{.Robots.LastError}}</p>{{end}}
 {{else}}<p class="muted">Мониторинг robots.txt отключён. <a href="/robots">Включить</a></p>{{end}}</section>
+<section class="card"><div class="cardhead"><h2>Проверка страниц</h2><a href="/pages">Настройки</a></div>
+<p class="muted">Проверка URL из sitemap с ограничением скорости и повторным обходом не чаще раза в сутки.</p><a href="/pages/{{.Monitor.ID}}">Результаты HTTP и SEO-проверок страниц</a>
+</section>
 <section class="card monitor-history" aria-labelledby="history-title">
   <div class="cardhead"><h2 id="history-title">История проверок</h2><span class="muted">Последние 100</span></div>
   <div class="bars" aria-label="Лента последних проверок">
