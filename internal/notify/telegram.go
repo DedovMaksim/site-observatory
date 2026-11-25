@@ -75,7 +75,9 @@ func (t *Telegram) sendRelay(ctx context.Context,message string) error {
  if err!=nil{return errors.New("Relay request initialization failed")}
  req.Header.Set("Content-Type","application/json")
  req.Header.Set("Authorization","Bearer "+t.relaySecret)
- res,err:=t.client.Do(req)
+ relayClient:=*t.client
+ relayClient.CheckRedirect=func(_ *http.Request,_ []*http.Request) error {return http.ErrUseLastResponse}
+ res,err:=relayClient.Do(req)
  if err!=nil{return errors.New("Relay connection failed")}
  defer res.Body.Close()
  _,_ = io.Copy(io.Discard,io.LimitReader(res.Body,4096))
