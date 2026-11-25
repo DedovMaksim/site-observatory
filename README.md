@@ -278,3 +278,30 @@ page number. Canonical comparison is case-insensitive with trailing slashes
 ignored, but does not resolve redirects or infer search-index status.
 A noindex directive or differing canonical is reported for inspection,
 not automatically classified as a site fault.
+
+
+### SEO alerts and confirmation (v0.6)
+
+Page audits use the existing Telegram outbox, only when Telegram is
+enabled and configured. After an existing healthy page develops an HTTP
+error (status 0/network error or >=400), a new `noindex`, or a missing
+HTML `title`, it enters `PENDING`. A confirmation check is scheduled
+no earlier than **two minutes** after the initial detection, and is
+processed by the same globally throttled five-URLs-per-minute queue.
+If the issue persists on that second check, one alert is queued; if the
+issue disappears, the pending alert is discarded. Confirmed issues do
+not produce duplicate notifications during subsequent daily scans.
+
+A follow-up healthy scan after a previously notified issue queues one
+recovery message. The initial baseline, including existing stored
+results when upgrading, does not send retrospective alerts. Non-HTML
+responses and transient HTTP errors do not resolve existing SEO metadata
+alerts merely because the HTML body was unavailable.
+
+Warning priority: HTTP errors and newly introduced `noindex` are
+critical; newly missing title is high. Changes to the title or canonical
+are retained as audit history but **do not** send Telegram messages.
+The audit view displays the number of pending confirmations and active
+notified problems. Confirmation checks are subject to the usual network
+limits and can run later than two minutes when the queue is busy or
+the server is stopped. No live site's content is modified.
