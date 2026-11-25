@@ -22,6 +22,7 @@ type PageAuditResult struct{
  URL,CheckedAt,Title,Canonical,Robots,Error string
  Status int
  Noindex bool
+ IsHTML bool
  MissingTitle,MissingCanonical,CanonicalMismatch,HTTPProblem bool
 }
 func decoratePageAudit(v *PageAuditResult){
@@ -129,6 +130,7 @@ func(d *DB) SavePageAudit(ctx context.Context,id int64,v PageAuditResult)error{
  baseline:=errors.Is(err,sql.ErrNoRows)
  if err!=nil&&!baseline{return err}
  old.Noindex=oldNoindex==1
+ old.IsHTML=old.Status>=200&&old.Status<300
  now:=time.Now().UTC().Format(time.RFC3339)
  v.CheckedAt=now
  _,err=tx.ExecContext(ctx,`INSERT INTO page_audit_results(monitor_id,url,checked_at,http_status,title,canonical,robots,noindex,last_error)
