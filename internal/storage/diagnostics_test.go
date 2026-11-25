@@ -29,3 +29,18 @@ func TestDiagnosticSnapshotsAndUptime(t *testing.T) {
  if stats.Total!=3 || stats.Successful!=2 || stats.AvgLatency!=100 {t.Fatalf("unexpected uptime stats %+v",stats)}
  points,err:=db.LastLatencies(id,100);if err!=nil||len(points)!=3{t.Fatalf("unexpected latency points %v %v",points,err)}
 }
+
+func TestUptimeFractionalAverageDoesNotBreakDetail(t *testing.T){
+ db,err:=Open(filepath.Join(t.TempDir(),"fractional.db"))
+ if err!=nil{t.Fatal(err)}
+ defer db.Close()
+ id,err:=db.CreateMonitor("Fractional","https://example.com",60,10,true)
+ if err!=nil{t.Fatal(err)}
+ now:=time.Now().UTC().Format(time.RFC3339)
+ for _,latency:=range []int64{725,726}{
+  if err=db.Record(context.Background(),id,Check{CheckedAt:now,Code:200,Latency:latency,Success:true});err!=nil{t.Fatal(err)}
+ }
+ stats,err:=db.Uptime(id,time.Now().Add(-time.Hour))
+ if err!=nil{t.Fatalf("fractional SQL AVG must not fail integer scan: %v",err)}
+ if stats.Total!=2||stats.AvgLatency!=725{t.Fatalf("unexpected truncated latency: %+v",stats)}
+}
