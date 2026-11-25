@@ -1,0 +1,11 @@
+{{define "pages-detail.html"}}{{template "head" .}}
+<div class="heading"><div><h1>Аудит страниц: {{.Monitor.Name}}</h1><p class="muted">{{.Monitor.URL}}</p></div><a href="/pages">← Все сайты</a></div>
+<div class="card"><div class="cardhead"><h2>Результаты URL</h2><span class="muted">Последние {{len .PageAuditResults}} проверенных страниц (до 100)</span></div>
+<div class="tablewrap"><table><thead><tr><th>URL</th><th>HTTP</th><th>Title</th><th>Canonical</th><th>Robots</th><th>Время UTC</th></tr></thead><tbody>
+{{range .PageAuditResults}}<tr><td class="break-text">{{.URL}}{{if .Error}}<small class="down">{{.Error}}</small>{{end}}</td><td>{{if or (ge .Status 400) (eq .Status 0)}}<span class="down">{{.Status}}</span>{{else}}<span class="up">{{.Status}}</span>{{end}}</td>
+<td class="break-text">{{.Title}}</td><td class="break-text">{{.Canonical}}</td><td class="break-text">{{if .Noindex}}<span class="down">{{.Robots}}</span>{{else}}{{.Robots}}{{end}}</td><td>{{.CheckedAt}}</td></tr>
+{{else}}<tr><td colspan="6">Результатов пока нет. Включите проверку и убедитесь, что sitemap уже просканирован.</td></tr>{{end}}
+</tbody></table></div></div>
+<div class="card"><div class="cardhead"><h2>Изменения метаданных и статусов</h2><span class="muted">{{len .PageAuditEvents}} последних событий</span></div>
+<div class="tablewrap"><table><thead><tr><th>Время UTC</th><th>URL</th><th>Тип</th><th>Описание</th></tr></thead><tbody>{{range .PageAuditEvents}}<tr><td>{{.CheckedAt}}</td><td class="break-text">{{.URL}}</td><td>{{.Kind}}</td><td>{{.Detail}}</td></tr>{{else}}<tr><td colspan="4">Первый обход создаёт исходные данные без событий изменений.</td></tr>{{end}}</tbody></table></div></div>
+{{template "foot" .}}{{end}}
