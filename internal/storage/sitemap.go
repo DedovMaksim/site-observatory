@@ -125,7 +125,7 @@ func (d *DB) RecordSitemapError(ctx context.Context,id int64,scanErr error)error
  if err!=nil{return err}
  // A single failure transition produces one notification, not a message per retry.
  if previousStatus!="ERROR" {
-  alert:=fmt.Sprintf("🔴 Sitemap недоступен: %s\\nКарта: %s\\nОшибка: %s",name,source,msg)
+  alert:=fmt.Sprintf("🔴 Sitemap недоступен: %s\nКарта: %s\nОшибка: %s",name,source,msg)
   if err=enqueueSitemapAlert(ctx,tx,alert);err!=nil{return err}
  }
  return tx.Commit()
@@ -180,11 +180,11 @@ func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)
  // Notify only on a meaningful loss of URLs (at least 10 and >=20%).
  // A source switch is always a fresh baseline and never triggers this alert.
  if !initial && len(old)>=10 && removed>=10 && removed*100>=len(old)*20 {
-  message:=fmt.Sprintf("⚠️ Из sitemap исчезло много URL: %s\\nКарта: %s\\nБыло: %d, стало: %d\\nИсчезло: %d, добавлено: %d\\nПроверьте карту и публикации.",monitorName,sourceURL,len(old),len(seen),removed,added)
+  message:=fmt.Sprintf("⚠️ Из sitemap исчезло много URL: %s\nКарта: %s\nБыло: %d, стало: %d\nИсчезло: %d, добавлено: %d\nПроверьте карту и публикации.",monitorName,sourceURL,len(old),len(seen),removed,added)
   if err=enqueueSitemapAlert(ctx,tx,message);err!=nil{return err}
  }
  if oldStatus=="ERROR" {
-  message:=fmt.Sprintf("🟢 Sitemap снова доступен: %s\\nКарта: %s\\nURL: %d",monitorName,sourceURL,len(seen))
+  message:=fmt.Sprintf("🟢 Sitemap снова доступен: %s\nКарта: %s\nURL: %d",monitorName,sourceURL,len(seen))
   if err=enqueueSitemapAlert(ctx,tx,message);err!=nil{return err}
  }
  _,err=tx.ExecContext(ctx,`INSERT INTO sitemap_snapshots(monitor_id,checked_at,total,files,added,removed) VALUES(?,?,?,?,?,?)`,id,checked,len(seen),files,added,removed)
