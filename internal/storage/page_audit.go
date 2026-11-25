@@ -61,6 +61,16 @@ func(d *DB) MigratePageAudit()error{
  detail TEXT NOT NULL
  );
  CREATE INDEX IF NOT EXISTS idx_page_audit_events ON page_audit_events(monitor_id,id DESC);
+ CREATE TABLE IF NOT EXISTS page_audit_alerts(
+ monitor_id INTEGER NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
+ url TEXT NOT NULL,
+ kind TEXT NOT NULL,
+ state TEXT NOT NULL CHECK(state IN ('PENDING','ACTIVE')),
+ confirm_at TEXT NOT NULL DEFAULT '',
+ notified INTEGER NOT NULL DEFAULT 0,
+ PRIMARY KEY(monitor_id,url,kind)
+ );
+ CREATE INDEX IF NOT EXISTS idx_page_alert_pending ON page_audit_alerts(state,confirm_at);
  `)
  return err
 }
@@ -98,8 +108,13 @@ func(d *DB) PageAuditDue(now time.Time,limit int)([]DuePage,error){
  JOIN page_audit_settings a ON a.monitor_id=m.id
  LEFT JOIN page_audit_results p ON p.monitor_id=su.monitor_id AND p.url=su.url
  WHERE a.enabled=1 AND m.enabled=1 AND sm.enabled=1 AND sm.has_baseline=1
- AND (p.checked_at IS NULL OR p.checked_at<=?)
- ORDER BY p.checked_at ASC,su.monitor_id,su.url LIMIT ?`,cutoff,limit)
+ AND (p.checked_at IS NULL OR p.checked_at<=? OR EXISTS (
+  SELECT 1 FROM page_audit_alerts alert WHERE alert.monitor_id=su.monitor_id
+  AND alert.url=su.url AND alert.state='PENDING' AND alert.confirm_at<=?))
+ ORDER BY CASE WHEN EXISTS (
+  SELECT 1 FROM page_audit_alerts alert WHERE alert.monitor_id=su.monitor_id
+  AND alert.url=su.url AND alert.state='PENDING' AND alert.confirm_at<=?) THEN 0 ELSE 1 END,
+  p.checked_at ASC,su.monitor_id,su.url LIMIT ?`,cutoff,now.UTC().Format(time.RFC3339),now.UTC().Format(time.RFC3339),limit)
  if err!=nil{return nil,err}
  defer rows.Close()
  out:=[]DuePage{}
@@ -115,12 +130,13 @@ func(d *DB) SavePageAudit(ctx context.Context,id int64,v PageAuditResult)error{
  if err!=nil&&!baseline{return err}
  old.Noindex=oldNoindex==1
  now:=time.Now().UTC().Format(time.RFC3339)
- if baseline {v.CheckedAt=now} else {v.CheckedAt=now}
+ v.CheckedAt=now
  _,err=tx.ExecContext(ctx,`INSERT INTO page_audit_results(monitor_id,url,checked_at,http_status,title,canonical,robots,noindex,last_error)
  VALUES(?,?,?,?,?,?,?,?,?)
  ON CONFLICT(monitor_id,url) DO UPDATE SET checked_at=excluded.checked_at,http_status=excluded.http_status,title=excluded.title,canonical=excluded.canonical,robots=excluded.robots,noindex=excluded.noindex,last_error=excluded.last_error`,
  id,v.URL,now,v.Status,v.Title,v.Canonical,v.Robots,v.Noindex,v.Error)
  if err!=nil{return err}
+ if err=updatePageAlerts(ctx,tx,id,old,v,baseline,time.Now().UTC());err!=nil{return err}
  if !baseline {
   events:=[][2]string{}
   if old.Status!=v.Status{events=append(events,[2]string{"HTTP","HTTP status changed"})}
