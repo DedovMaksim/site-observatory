@@ -43,6 +43,10 @@ func (d *DB) MigrateSitemap() error{
  files INTEGER NOT NULL DEFAULT 0,
  has_baseline INTEGER NOT NULL DEFAULT 0
  );
+ CREATE TABLE IF NOT EXISTS sitemap_baseline_sources (
+ monitor_id INTEGER PRIMARY KEY REFERENCES monitors(id) ON DELETE CASCADE,
+ source_url TEXT NOT NULL
+ );
  CREATE TABLE IF NOT EXISTS sitemap_urls (
  monitor_id INTEGER NOT NULL REFERENCES monitors(id) ON DELETE CASCADE,
  url TEXT NOT NULL,
@@ -117,9 +121,15 @@ func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)
  // The initial scan establishes a baseline; it does not represent a burst
  // of newly published pages.
  var baseline int
- err=tx.QueryRowContext(ctx,`SELECT has_baseline FROM sitemap_settings WHERE monitor_id=?`,id).Scan(&baseline)
+ var sourceURL string
+ err=tx.QueryRowContext(ctx,`SELECT has_baseline,sitemap_url FROM sitemap_settings WHERE monitor_id=?`,id).Scan(&baseline,&sourceURL)
  if err!=nil{return err}
- initial:=baseline==0
+ var previousSource string
+ err=tx.QueryRowContext(ctx,`SELECT source_url FROM sitemap_baseline_sources WHERE monitor_id=?`,id).Scan(&previousSource)
+ if err!=nil && !errors.Is(err,sql.ErrNoRows){return err}
+ // First successful scan after a source switch establishes a fresh baseline.
+ // Keep existing change history, but don't label newly covered URLs as added.
+ initial:=baseline==0 || previousSource!=sourceURL
  seen:=map[string]bool{}
  added,removed:=0,0
  for _,u:=range urls{
@@ -136,11 +146,15 @@ func (d *DB) RecordSitemap(ctx context.Context,id int64,urls []string,files int)
  for u:=range old{
   if !seen[u]{
    removed++
-   if _,err=tx.ExecContext(ctx,`INSERT INTO sitemap_changes(monitor_id,url,kind,checked_at) VALUES(?,?,'REMOVED',?)`,id,u,checked);err!=nil{return err}
+   if !initial{
+    if _,err=tx.ExecContext(ctx,`INSERT INTO sitemap_changes(monitor_id,url,kind,checked_at) VALUES(?,?,'REMOVED',?)`,id,u,checked);err!=nil{return err}
+   }
    if _,err=tx.ExecContext(ctx,`DELETE FROM sitemap_urls WHERE monitor_id=? AND url=?`,id,u);err!=nil{return err}
   }
  }
  if initial{added=0;removed=0}
+ _,err=tx.ExecContext(ctx,`INSERT INTO sitemap_baseline_sources(monitor_id,source_url) VALUES(?,?) ON CONFLICT(monitor_id) DO UPDATE SET source_url=excluded.source_url`,id,sourceURL)
+ if err!=nil{return err}
  _,err=tx.ExecContext(ctx,`UPDATE sitemap_settings SET status='OK',last_error='',last_checked=?,next_check=?,total=?,added=?,removed=?,files=?,has_baseline=1 WHERE monitor_id=?`,checked,now.Add(24*time.Hour).Format(time.RFC3339),len(seen),added,removed,files,id)
  if err!=nil{return err}
  // Bound retained change history per monitor.
