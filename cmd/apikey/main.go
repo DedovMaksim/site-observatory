@@ -17,7 +17,9 @@ func main(){
  revoke:=flag.Bool("revoke",false,"revoke existing key by name")
  flag.Parse()
  if *name==""{log.Fatal("specify -name")}
- db,err:=storage.Open(filepath.Join(*data,"observatory.db"))
+ dbPath:=filepath.Join(*data,"observatory.db")
+ if _,err:=os.Stat(dbPath);err!=nil{log.Fatalf("existing Site Observatory database not found: %v",err)}
+ db,err:=storage.Open(dbPath)
  if err!=nil{log.Fatal(err)}
  defer db.Close()
  if *revoke {
