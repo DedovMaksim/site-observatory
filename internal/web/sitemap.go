@@ -45,6 +45,8 @@ func (s *Server) sitemapChanges(w http.ResponseWriter,r *http.Request){
  if err!=nil{http.Error(w,"database error",500);return}
  changes,err:=s.DB.SitemapChanges(id,100)
  if err!=nil{http.Error(w,"database error",500);return}
- s.render(w,r,"sitemap-changes.html",view{Title:"Изменения sitemap",Sitemap:state,SitemapChanges:changes})
+ snapshots,err:=s.DB.SitemapSnapshots(id,30)
+ if err!=nil{http.Error(w,"database error",500);return}
+ s.render(w,r,"sitemap-changes.html",view{Title:"Изменения sitemap",Sitemap:state,SitemapChanges:changes,SitemapSnapshots:snapshots})
 }
 var _ storage.SitemapChange
