@@ -44,6 +44,13 @@ func TestMCPStdioLifecycleAndReadOnlyTools(t *testing.T){
   info:=v.(map[string]any)
   annotations:=info["annotations"].(map[string]any)
   if annotations["readOnlyHint"]!=true{t.Fatal("non-read-only tool listed")}
+  schema:=info["inputSchema"].(map[string]any)
+  required,ok:=schema["required"].([]any)
+  if !ok {t.Fatalf("tool %s has non-array required field: %T (%v)",info["name"],schema["required"],schema["required"])}
+  if _,ok:=schema["properties"].(map[string]any);!ok {t.Fatalf("tool %s has invalid properties schema",info["name"])}
+  if info["name"]=="get_monitor_status"||info["name"]=="get_seo_issues" {
+   if len(required)!=1||required[0]!="monitor_id"{t.Fatalf("tool %s required=%v",info["name"],required)}
+  }else if len(required)!=0{t.Fatalf("tool %s unexpected required=%v",info["name"],required)}
  }
  for _,i:=range []int{2,3,4}{
   result:=parsed[i]["result"].(map[string]any)
