@@ -1,0 +1,11 @@
+{{define "pages.html"}}{{template "head" .}}
+<div class="heading"><div><h1>Проверка страниц из sitemap</h1><p class="muted">Бережная очередь: до 5 страниц в минуту, пауза не менее 2 секунд между запросами. Проверка выключена по умолчанию.</p></div><a href="/">← Обзор</a></div>
+<div class="card"><div class="cardhead"><h2>Сайты</h2><span class="muted">{{len .PageAuditConfigs}} мониторов</span></div>
+<div class="tablewrap"><table><thead><tr><th>Сайт</th><th>Страниц в sitemap</th><th>Проверено</th><th>Проблемы</th><th>Настройки</th></tr></thead><tbody>
+{{range .PageAuditConfigs}}<tr><td><strong>{{.MonitorName}}</strong><small>{{.SiteURL}}</small><small><a href="/pages/{{.MonitorID}}">Результаты страниц</a></small></td>
+<td>{{.Total}}</td><td>{{.Checked}}</td><td>{{if gt .Errors 0}}<span class="down">{{.Errors}} HTTP/ошибок</span>{{else}}<span class="up">0 HTTP-ошибок</span>{{end}}<small>{{.Noindex}} noindex</small></td>
+<td><form method="post" action="/pages/{{.MonitorID}}/configure" class="page-audit-config"><input type="hidden" name="csrf" value="{{$.CSRF}}"><label class="check"><input type="checkbox" name="enabled" {{if .Enabled}}checked{{end}}> Включить</label><button type="submit">Сохранить</button></form></td></tr>
+{{else}}<tr><td colspan="5">Мониторов пока нет.</td></tr>{{end}}
+</tbody></table></div>
+<p class="muted">Проверяются только URL из последнего успешного sitemap. Каждый URL повторно проверяется не чаще раза в сутки. Для запуска необходим включённый sitemap-мониторинг сайта. Telegram-уведомления для проверок отдельных страниц пока выключены.</p>
+</div>{{template "foot" .}}{{end}}
