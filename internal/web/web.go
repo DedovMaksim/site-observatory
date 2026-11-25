@@ -279,6 +279,7 @@ func (s *Server) detail(w http.ResponseWriter, r *http.Request) {
  if stats, err := s.DB.Uptime(m.ID,time.Now().Add(-24*time.Hour)); err == nil {v.Stats=stats}
  if latencies,err:=s.DB.LastLatencies(m.ID,100);err==nil {v.GraphPoints=latencyGraph(latencies)}
  if domain,err:=s.DB.DomainForMonitor(m.ID);err==nil {v.Domain=domain;v.HasDomain=true}
+ if sitemapState,err:=s.DB.SitemapForMonitor(m.ID);err==nil{v.Sitemap=sitemapState}
  s.render(w,r,"detail.html",v)
 }
 func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
