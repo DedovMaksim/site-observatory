@@ -63,6 +63,11 @@ type view struct {
 	PageAuditConfigs []storage.PageAuditConfig
 	PageAuditResults []storage.PageAuditResult
 	PageAuditEvents []storage.PageAuditEvent
+	PageAuditPage storage.PageAuditPage
+	PageAuditIssues storage.PageAuditIssueCounts
+	PageAuditConfig storage.PageAuditConfig
+	PageFilter,PageSearch string
+	PageBefore,PageAfter int
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
