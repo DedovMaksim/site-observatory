@@ -60,10 +60,27 @@ type view struct {
 	Robots storage.RobotsState
 	RobotsChanges []storage.RobotsChange
 	RobotsEnabled, RobotsErrors, RobotsRootWarnings int
+	PageAuditConfigs []storage.PageAuditConfig
+	PageAuditResults []storage.PageAuditResult
+	PageAuditEvents []storage.PageAuditEvent
+	PageAuditPage storage.PageAuditPage
+	PageAuditIssues storage.PageAuditIssueCounts
+	PageAuditConfig storage.PageAuditConfig
+	PageFilter,PageSearch string
+	PageBefore,PageAfter int
+	PageAlertPending,PageAlertActive int
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
-	t, e := template.New("base").Funcs(template.FuncMap{"percent": func(x, y int) string {
+	t, e := template.New("base").Funcs(pageTemplateFuncs()).ParseFS(assets, "templates/*.html")
+	if e != nil {
+		return nil, e
+	}
+	s := &Server{DB: db, Auth: a, Checker: c, Notify: n, templates: t, mux: http.NewServeMux()}
+	s.routes()
+	return s, nil
+}
+func pageTemplateFuncs() template.FuncMap { return template.FuncMap{"percent": func(x, y int) string {
 		if y == 0 {
 			return "0"
 		}
@@ -73,13 +90,7 @@ func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram)
 			return s[:130] + "…"
 		}
 		return s
-	}}).ParseFS(assets, "templates/*.html")
-	if e != nil {
-		return nil, e
-	}
-	s := &Server{DB: db, Auth: a, Checker: c, Notify: n, templates: t, mux: http.NewServeMux()}
-	s.routes()
-	return s, nil
+	}}
 }
 func (s *Server) Handler() http.Handler { return securityHeaders(s.mux) }
 func securityHeaders(next http.Handler) http.Handler {
@@ -106,6 +117,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /domains", s.require(s.domainList))
 	s.mux.HandleFunc("GET /sitemaps", s.require(s.sitemapList))
 	s.mux.HandleFunc("GET /robots", s.require(s.robotsList))
+	s.mux.HandleFunc("GET /pages",s.require(s.pageAudits))
+	s.mux.HandleFunc("GET /pages/{id}",s.require(s.pageAuditDetail))
+	s.mux.HandleFunc("POST /pages/{id}/configure",s.require(s.pageAuditConfigure))
 	s.mux.HandleFunc("POST /robots/{id}/configure", s.require(s.robotsConfigure))
 	s.mux.HandleFunc("GET /robots/{id}/history", s.require(s.robotsHistory))
 	s.mux.HandleFunc("POST /sitemaps/{id}/configure", s.require(s.sitemapConfigure))

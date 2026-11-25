@@ -170,3 +170,26 @@ func FetchRobots(ctx context.Context,siteURL string)(string,error){
  if len(data)>limit{return "",errors.New("robots.txt exceeds 512 KiB limit")}
  return string(data),nil
 }
+
+// FetchPage reads a single page from a sitemap snapshot using the same
+// strict same-host redirect and public-IP protections as sitemap scanning.
+// HTTP error status codes are returned as data rather than transport errors.
+func FetchPage(ctx context.Context,siteURL,pageURL string)(int,string,http.Header,error){
+ site,err:=url.Parse(siteURL)
+ if err!=nil||site.Hostname()==""||(site.Scheme!="http"&&site.Scheme!="https"){return 0,"",nil,errors.New("invalid monitored site URL")}
+ if _,err=validateURL(pageURL,site.Hostname());err!=nil{return 0,"",nil,err}
+ req,err:=http.NewRequestWithContext(ctx,"GET",pageURL,nil);if err!=nil{return 0,"",nil,err}
+ req.Header.Set("User-Agent","SiteObservatory/0.6 (+page-audit)")
+ resp,err:=newClient(site.Hostname()).Do(req)
+ if err!=nil{return 0,"",nil,err}
+ defer resp.Body.Close()
+ // Non-HTML 2xx is recorded with the HTTP status but no SEO fields.
+ if !strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")),"text/html"){
+  return resp.StatusCode,"",resp.Header.Clone(),nil
+ }
+ const limit=2<<20
+ content,err:=io.ReadAll(io.LimitReader(resp.Body,limit+1))
+ if err!=nil{return resp.StatusCode,"",resp.Header.Clone(),err}
+ if len(content)>limit{return resp.StatusCode,"",resp.Header.Clone(),errors.New("HTML response exceeds 2 MiB limit")}
+ return resp.StatusCode,string(content),resp.Header.Clone(),nil
+}

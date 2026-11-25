@@ -6,7 +6,7 @@ import (
 )
 
 func TestTemplatesParse(t *testing.T) {
-	_, err := template.New("base").ParseFS(assets, "templates/*.html")
+	_, err := template.New("base").Funcs(pageTemplateFuncs()).ParseFS(assets, "templates/*.html")
 	if err != nil {
 		t.Fatal(err)
 	}
