@@ -1,11 +1,74 @@
 {{define "pages-detail.html"}}{{template "head" .}}
 <div class="heading"><div><h1>Аудит страниц: {{.Monitor.Name}}</h1><p class="muted">{{.Monitor.URL}}</p></div><a href="/pages">← Все сайты</a></div>
-<div class="card"><div class="cardhead"><h2>Результаты URL</h2><span class="muted">Последние {{len .PageAuditResults}} проверенных страниц (до 100)</span></div>
-<div class="tablewrap"><table><thead><tr><th>URL</th><th>HTTP</th><th>Title</th><th>Canonical</th><th>Robots</th><th>Время UTC</th></tr></thead><tbody>
-{{range .PageAuditResults}}<tr><td class="break-text">{{.URL}}{{if .Error}}<small class="down">{{.Error}}</small>{{end}}</td><td>{{if or (ge .Status 400) (eq .Status 0)}}<span class="down">{{.Status}}</span>{{else}}<span class="up">{{.Status}}</span>{{end}}</td>
-<td class="break-text">{{.Title}}</td><td class="break-text">{{.Canonical}}</td><td class="break-text">{{if .Noindex}}<span class="down">{{.Robots}}</span>{{else}}{{.Robots}}{{end}}</td><td>{{.CheckedAt}}</td></tr>
-{{else}}<tr><td colspan="6">Результатов пока нет. Включите проверку и убедитесь, что sitemap уже просканирован.</td></tr>{{end}}
-</tbody></table></div></div>
+<div class="card page-audit-overview">
+<div class="cardhead"><h2>Прогресс обхода</h2><span class="muted">Проверка новых URL и повторный обход не чаще раза в сутки</span></div>
+<div class="page-progress-heading"><strong>{{.PageAuditConfig.Checked}} / {{.PageAuditConfig.Total}} страниц</strong><strong>{{percent .PageAuditConfig.Checked .PageAuditConfig.Total}}%</strong></div>
+<progress class="page-progress" max="{{if gt .PageAuditConfig.Total 0}}{{.PageAuditConfig.Total}}{{else}}1{{end}}" value="{{.PageAuditConfig.Checked}}">{{percent .PageAuditConfig.Checked .PageAuditConfig.Total}}%</progress>
+<div class="page-issue-summary">
+<div><span class="muted">HTTP-ошибки</span><strong class="{{if gt .PageAuditIssues.HTTP 0}}down{{else}}up{{end}}">{{.PageAuditIssues.HTTP}}</strong></div>
+<div><span class="muted">Noindex</span><strong>{{.PageAuditIssues.Noindex}}</strong></div>
+<div><span class="muted">Нет Title</span><strong>{{.PageAuditIssues.Title}}</strong></div>
+<div><span class="muted">Нет Canonical</span><strong>{{.PageAuditIssues.Canonical}}</strong></div>
+<div><span class="muted">Другой Canonical</span><strong>{{.PageAuditIssues.CanonicalMismatch}}</strong></div>
+</div>
+<p class="muted">Счётчики относятся только к уже проверенным страницам. Noindex и другой Canonical требуют проверки, но не всегда являются ошибками.</p>
+</div>
+
+<div class="card">
+<div class="cardhead"><h2>Страницы</h2><span class="muted">Найдено: {{.PageAuditPage.Total}} · По 25 на страницу</span></div>
+<form method="get" action="/pages/{{.Monitor.ID}}" class="page-audit-filters">
+<label>Поиск URL или Title
+<input type="search" name="q" value="{{.PageSearch}}" placeholder="Адрес или часть заголовка" maxlength="200">
+</label>
+<label>Фильтр
+<select name="filter">
+<option value="all" {{if eq .PageFilter "all"}}selected{{end}}>Все проверенные</option>
+<option value="http" {{if eq .PageFilter "http"}}selected{{end}}>HTTP-ошибки</option>
+<option value="noindex" {{if eq .PageFilter "noindex"}}selected{{end}}>Noindex</option>
+<option value="title" {{if eq .PageFilter "title"}}selected{{end}}>Нет Title</option>
+<option value="canonical" {{if eq .PageFilter "canonical"}}selected{{end}}>Нет Canonical</option>
+<option value="mismatch" {{if eq .PageFilter "mismatch"}}selected{{end}}>Canonical не совпадает с URL</option>
+</select>
+</label>
+<button type="submit">Применить</button>
+<a class="page-audit-reset" href="/pages/{{.Monitor.ID}}">Сбросить</a>
+</form>
+<div class="tablewrap"><table class="page-audit-table">
+<thead><tr><th>Страница</th><th>HTTP</th><th>SEO</th><th>Проверено (UTC)</th></tr></thead><tbody>
+{{range .PageAuditPage.Results}}
+<tr>
+<td class="page-audit-url-cell">
+<a href="{{.URL}}" target="_blank" rel="noopener noreferrer" class="page-audit-url">{{.URL}}</a>
+{{if .Title}}<small class="page-audit-title">{{.Title}}</small>{{else}}<small class="down">Title отсутствует</small>{{end}}
+<details class="page-audit-details"><summary>Подробнее</summary>
+<dl>
+<dt>Title</dt><dd>{{if .Title}}{{.Title}}{{else}}—{{end}}</dd>
+<dt>Canonical</dt><dd class="break-text">{{if .Canonical}}{{.Canonical}}{{else}}—{{end}}</dd>
+<dt>Meta / X-Robots-Tag</dt><dd class="break-text">{{if .Robots}}{{.Robots}}{{else}}Не задано (само по себе не ошибка){{end}}</dd>
+{{if .Error}}<dt>Ошибка проверки</dt><dd class="down">{{.Error}}</dd>{{end}}
+</dl>
+</details>
+</td>
+<td>{{if .HTTPProblem}}<span class="down">{{.Status}}</span>{{else}}<span class="up">{{.Status}}</span>{{end}}</td>
+<td><div class="page-audit-flags">
+{{if .HTTPProblem}}<span class="page-audit-flag flag-danger">HTTP</span>{{end}}
+{{if .Noindex}}<span class="page-audit-flag flag-warning">Noindex</span>{{end}}
+{{if .MissingTitle}}<span class="page-audit-flag flag-warning">Нет Title</span>{{end}}
+{{if .MissingCanonical}}<span class="page-audit-flag flag-warning">Нет Canonical</span>{{else if .CanonicalMismatch}}<span class="page-audit-flag flag-warning">Другой Canonical</span>{{end}}
+{{if and (not .HTTPProblem) (not .Noindex) (not .MissingTitle) (not .MissingCanonical) (not .CanonicalMismatch)}}<span class="up">Без замечаний</span>{{end}}
+</div></td>
+<td class="page-audit-time">{{.CheckedAt}}</td>
+</tr>
+{{else}}<tr><td colspan="4">По выбранным условиям проверенных страниц нет. Попробуйте изменить поиск или фильтр.</td></tr>{{end}}
+</tbody></table></div>
+<div class="page-audit-pagination">
+<span class="muted">Страница {{.PageAuditPage.Page}} · Всего результатов: {{.PageAuditPage.Total}}</span>
+<div class="page-audit-pagination-links">
+{{if .PageAuditPage.HasPrevious}}<a href="/pages/{{.Monitor.ID}}?filter={{.PageFilter}}&q={{.PageSearch}}&page={{.PageBefore}}">← Назад</a>{{end}}
+{{if .PageAuditPage.HasNext}}<a href="/pages/{{.Monitor.ID}}?filter={{.PageFilter}}&q={{.PageSearch}}&page={{.PageAfter}}">Далее →</a>{{end}}
+</div>
+</div>
+</div>
 <div class="card"><div class="cardhead"><h2>Изменения метаданных и статусов</h2><span class="muted">{{len .PageAuditEvents}} последних событий</span></div>
 <div class="tablewrap"><table><thead><tr><th>Время UTC</th><th>URL</th><th>Тип</th><th>Описание</th></tr></thead><tbody>{{range .PageAuditEvents}}<tr><td>{{.CheckedAt}}</td><td class="break-text">{{.URL}}</td><td>{{.Kind}}</td><td>{{.Detail}}</td></tr>{{else}}<tr><td colspan="4">Первый обход создаёт исходные данные без событий изменений.</td></tr>{{end}}</tbody></table></div></div>
 {{template "foot" .}}{{end}}
