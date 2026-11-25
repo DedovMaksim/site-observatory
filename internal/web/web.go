@@ -68,6 +68,7 @@ type view struct {
 	PageAuditConfig storage.PageAuditConfig
 	PageFilter,PageSearch string
 	PageBefore,PageAfter int
+	PageAlertPending,PageAlertActive int
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
