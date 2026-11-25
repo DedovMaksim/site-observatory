@@ -11,6 +11,7 @@ import (
  "net"
  "net/http"
  "net/netip"
+ "sort"
  "net/url"
  "strings"
  "time"
@@ -127,7 +128,7 @@ func (s Scanner) Scan(ctx context.Context,siteURL,sitemapURL string)(Result,erro
  out:=make([]string,0,len(urls))
  for u:=range urls{out=append(out,u)}
  // A stable order supports repeatable snapshots and tests.
- sortStrings(out)
+ sort.Strings(out)
  return Result{URLs:out,Files:count},nil
 }
 func fetchXML(ctx context.Context,client *http.Client,raw string,into *sitemapXML)error{
