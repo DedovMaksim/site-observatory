@@ -15,7 +15,9 @@ import (
 func main(){
  data:=flag.String("data","./data","Site Observatory data directory")
  flag.Parse()
- db,err:=storage.Open(filepath.Join(*data,"observatory.db"))
+ dbPath:=filepath.Join(*data,"observatory.db")
+ if _,err:=os.Stat(dbPath);err!=nil{log.Fatalf("existing Site Observatory database not found: %v",err)}
+ db,err:=storage.Open(dbPath)
  if err!=nil{log.Fatal(err)}
  defer db.Close()
  server:=mcp.Server{Service:observatory.New(db)}
