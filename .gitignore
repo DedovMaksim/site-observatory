@@ -6,3 +6,8 @@
 site-observatory
 site-observatory.exe
 *.zip
+
+# Local development, compiled binaries and private workspace configuration
+/bin/
+/backups/
+/.vscode/mcp.json
