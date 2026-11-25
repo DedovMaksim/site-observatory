@@ -1,7 +1,9 @@
 package api
 
 import (
+ "context"
  "encoding/json"
+ "time"
  "net/http"
  "net/http/httptest"
  "path/filepath"
@@ -15,6 +17,11 @@ func TestBearerOnlyRESTReadAPI(t *testing.T){
  defer db.Close()
  id,err:=db.CreateMonitor("Demo","https://example.com",60,10,true);if err!=nil{t.Fatal(err)}
  if err=db.SyncMonitorDomain(id,"https://example.com");err!=nil{t.Fatal(err)}
+ // Real monitors have many latency samples. An AVG() with decimals must
+ // still allow the detailed API request to succeed.
+ for _,latency:=range []int64{725,726}{
+  if err=db.Record(context.Background(),id,storage.Check{CheckedAt:time.Now().UTC().Format(time.RFC3339),Success:true,Code:200,Latency:latency});err!=nil{t.Fatal(err)}
+ }
  token,err:=db.CreateAPIKey("test-client");if err!=nil{t.Fatal(err)}
  server:=httptest.NewServer(New(db));defer server.Close()
  check:=func(path,authorization string,want int)map[string]any{
