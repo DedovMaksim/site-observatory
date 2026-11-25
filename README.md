@@ -260,3 +260,21 @@ and does not execute JavaScript; dynamic client-rendered metadata may
 not be discovered. Canonical/noindex warnings are advisory, not indexing
 guarantees. This initial page audit does **not** send Telegram alerts.
 Sites with very large sitemaps are processed gradually over many cycles.
+
+
+### Page audit interface and filters
+
+The `/pages` overview shows live scan coverage (`checked / sitemap URLs`) and
+a progress bar. A monitor's page-audit report shows page-level warnings,
+full-text substring search over URL or title, and server-side filters for
+HTTP/connection errors, noindex, missing title, missing canonical, and a
+canonical pointing to a different URL. Filters apply to **all** stored audit
+results for URLs still present in the sitemap, not only the visible page.
+
+Results are paginated 25 per page. Each compact row provides its HTTP code,
+short title and SEO issue flags; expand "Подробнее" to inspect the
+canonical and robots metadata. Changing filters or search queries resets the
+page number. Canonical comparison is case-insensitive with trailing slashes
+ignored, but does not resolve redirects or infer search-index status.
+A noindex directive or differing canonical is reported for inspection,
+not automatically classified as a site fault.
