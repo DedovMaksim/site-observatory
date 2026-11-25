@@ -34,6 +34,7 @@ type Server struct {
 }
 type view struct {
 	Title, CSRF, Error, Message string
+ AppVersion, Platform string
 	Monitors                    []storage.Monitor
 	Monitor                     storage.Monitor
 	Checks                      []storage.Check
