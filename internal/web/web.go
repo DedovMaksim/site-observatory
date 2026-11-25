@@ -71,7 +71,15 @@ type view struct {
 }
 
 func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram) (*Server, error) {
-	t, e := template.New("base").Funcs(template.FuncMap{"percent": func(x, y int) string {
+	t, e := template.New("base").Funcs(pageTemplateFuncs()).ParseFS(assets, "templates/*.html")
+	if e != nil {
+		return nil, e
+	}
+	s := &Server{DB: db, Auth: a, Checker: c, Notify: n, templates: t, mux: http.NewServeMux()}
+	s.routes()
+	return s, nil
+}
+func pageTemplateFuncs() template.FuncMap { return template.FuncMap{"percent": func(x, y int) string {
 		if y == 0 {
 			return "0"
 		}
@@ -81,14 +89,7 @@ func New(db *storage.DB, a *auth.Manager, c monitor.Checker, n *notify.Telegram)
 			return s[:130] + "…"
 		}
 		return s
-	}}).ParseFS(assets, "templates/*.html")
-	if e != nil {
-		return nil, e
-	}
-	s := &Server{DB: db, Auth: a, Checker: c, Notify: n, templates: t, mux: http.NewServeMux()}
-	s.routes()
-	return s, nil
-}
+	}}
 func (s *Server) Handler() http.Handler { return securityHeaders(s.mux) }
 func securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
