@@ -4,7 +4,7 @@
 
 Site Observatory is a lightweight web application for monitoring the availability and technical health of websites. It combines uptime checks, incident history, TLS/DNS/domain diagnostics, sitemap and robots.txt monitoring, and an optional page-level SEO audit. A read-only REST API and a local MCP server let external tools and AI assistants analyze the same monitoring data.
 
-**Status:** v0.8 **Beta** · Go 1.27 · SQLite · server-rendered web UI · light/dark theme · single administrator
+**Status:** v0.9.1 **Beta** · Go 1.27 · SQLite · server-rendered web UI · light/dark theme · single administrator
 
 **Author:** [Maksim Dedov](https://maksimdedov.ru/) · [GitHub](https://github.com/DedovMaksim)
 
@@ -203,13 +203,13 @@ go build ./cmd/mcp
 
 GitHub Actions runs static checks, race-enabled tests and cross-builds for Windows AMD64, Linux AMD64 and Linux ARM64. **Passing CI does not replace production smoke tests.**
 
-The project is currently an evolving **v0.8 Beta**. Future work may include hardened VDS deployment, backup/restore validation, richer audit reporting and additional monitoring integrations.
+The project is currently an evolving **v0.9.1 Beta**. Future work may include hardened VDS deployment, backup/restore validation, richer audit reporting and additional monitoring integrations.
 
 ## Author and licensing
 
 Developed by **[Maksim Dedov](https://maksimdedov.ru/)**. Source repository: [DedovMaksim/site-observatory](https://github.com/DedovMaksim/site-observatory).
 
-**License:** not selected. The repository is currently private; no open-source licensing rights should be assumed. A LICENSE file and public release policy can be added separately if the project is published.
+**License:** not selected. The repository is public; no open-source licensing rights should be assumed. A LICENSE file and public release policy can be added separately if the project is published.
 
 
 ## Telegram HTTPS Relay (optional)
@@ -226,3 +226,9 @@ RELAY_SECRET=REPLACE_WITH_YOUR_PRIVATE_RELAY_SECRET
 This Relay uses an authenticated `POST` request with `Authorization: Bearer <RELAY_SECRET>`, `Content-Type: application/json`, and the body `{ "text": "notification" }`. The Worker already stores its own Telegram Bot Token and Chat ID: Site Observatory does **not** send its local Bot Token or Chat ID to the Worker. The recipient is therefore configured **on the Worker side**. Relay mode is active only when both environment variables are set; a missing variable prevents service startup rather than silently falling back to direct delivery. Incoming error messages and logs do not include the secret, and HTTP redirects are not followed for Relay requests.
 
 After updating the environment and restarting `site-observatory.service`, open the web **Settings** page and send a test message. Existing Telegram notification settings (enabled, incident and recovery flags), the durable outbox, retries and other site monitoring functions remain unchanged. **Never commit or share `RELAY_SECRET`**. Use a long unique secret and rotate it if exposed.
+
+## Updating a standard Linux systemd deployment
+
+For a trusted, locally downloaded CI binary, use `sudo bash scripts/update.sh /path/to/binary EXPECTED_BINARY_SHA256 http://127.0.0.1:8080/login` (replace the port with your configured APP_ADDR). Obtain the expected SHA-256 of the **binary**, not the ZIP, from a trusted source. The script assumes the standard /opt and /var/lib layout and requires root, Python 3, curl, flock and systemd. It checks the existing configuration, takes an offline backup of the data and keys, replaces the executable and checks the local login endpoint. On failure it attempts to restart the previous binary; it does not automatically restore the database because future schema changes may require manual recovery. Never use it for an incompatible schema migration without a tested restore plan. Test on a non-production instance first. No web-server configuration is changed.
+
+In Relay mode the Settings page hides direct Bot Token and Chat ID fields, preserving saved credentials for a later switch back. Delivery mode is configured only through server environment variables.

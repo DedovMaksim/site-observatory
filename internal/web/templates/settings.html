@@ -1,18 +1,20 @@
 {{define "settings.html"}}{{template "head" .}}
-<div class="heading"><div><h1>Настройки</h1><p class="muted">Интеграция с Telegram для уведомлений о доступности сайтов.</p></div><a href="/">← Обзор</a></div>
+<div class="heading"><div><h1>Настройки</h1><p class="muted">Управление уведомлениями и информация о системе.</p></div><a href="/">← Обзор</a></div>
 <div class="card formcard">
 <h2>Telegram-уведомления</h2>
-{{if .RelayEnabled}}<p class="notice">Режим доставки: HTTPS Relay. Токен бота и Chat ID задаются в настройках Relay, а не на этом сервере. Поля ниже для прямой отправки необязательны.</p>{{end}}
+{{if .RelayEnabled}}<p class="notice">Режим доставки: HTTPS Relay. Токен бота и Chat ID задаются в настройках Relay, а не на этом сервере. Секрет настроен на сервере.</p>{{end}}
 {{if .Error}}<p class="alert">{{.Error}}</p>{{end}}
 {{if .Message}}<p class="notice">{{.Message}}</p>{{end}}
 <form method="post" action="/settings/telegram" class="stack">
 <input type="hidden" name="csrf" value="{{.CSRF}}">
 <label class="check"><input type="checkbox" name="enabled" {{if .Telegram.Enabled}}checked{{end}}> Включить уведомления</label>
+{{if not .RelayEnabled}}
 <label>Bot Token
 <input type="password" name="bot_token" value="" autocomplete="off" maxlength="256" placeholder="{{if .TokenConfigured}}Токен сохранён — оставьте пустым, чтобы не менять{{else}}Токен от @BotFather{{end}}">
 </label>
 <p class="muted">{{if .TokenConfigured}}Токен сохранён в зашифрованном виде и не отображается. Для замены введите новый.{{else}}Токен ещё не настроен.{{end}}</p>
 <label>Chat ID<input type="text" name="chat_id" value="{{.Telegram.ChatID}}" maxlength="26" placeholder="Например: -1001234567890"></label>
+{{end}}
 <label class="check"><input type="checkbox" name="notify_down" {{if .Telegram.NotifyDown}}checked{{end}}> Сообщать о подтверждённом падении</label>
 <label class="check"><input type="checkbox" name="notify_up" {{if .Telegram.NotifyUp}}checked{{end}}> Сообщать о восстановлении</label>
 <button type="submit" class="primary">Сохранить настройки</button>
@@ -24,4 +26,5 @@
 </form>
 <p class="muted">{{if .RelayEnabled}}Тест отправляется через HTTPS Relay. Секрет хранится только в конфигурации сервера.{{else}}Сначала сохраните токен и Chat ID. Тест можно отправить и при выключенных автоматических уведомлениях.{{end}}</p>
 </div>
+<div class="card formcard"><h2>Информация о системе</h2><p>Версия: {{.AppVersion}} Beta</p><p>Платформа: {{.Platform}}</p><p>База данных: SQLite</p></div>
 {{template "foot" .}}{{end}}
