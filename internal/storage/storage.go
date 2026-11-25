@@ -52,6 +52,7 @@ func Open(path string) (*DB, error) {
  if err := s.MigrateSitemap(); err != nil { db.Close(); return nil,err }
  if err := s.MigrateRobots(); err != nil { db.Close(); return nil,err }
  if err := s.MigratePageAudit(); err != nil { db.Close(); return nil,err }
+ if err := s.MigrateAPIKeys(); err != nil { db.Close(); return nil,err }
  return s,nil
 }
 func (d *DB) Migrate() error {

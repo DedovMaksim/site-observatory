@@ -306,3 +306,86 @@ The audit view displays the number of pending confirmations and active
 notified problems. Confirmation checks are subject to the usual network
 limits and can run later than two minutes when the queue is busy or
 the server is stopped. No live site's content is modified.
+
+
+## Read-only REST API v0.7
+
+REST endpoints use a separate **Bearer API key**, not browser cookies.
+The API is disabled for uncredentialed callers; never include the key in a URL.
+This release does **not** allow monitor creation/deletion or configuration writes.
+
+To provision a local key, **stop Site Observatory** first and run:
+
+```bash
+go run ./cmd/apikey -data ./data -name my-local-client
+```
+
+The command prints the full credential once. Save it in a password
+manager or another secure local store. Only a SHA-256 hash is persisted
+in `data/observatory.db`. Revoke a key with:
+
+```bash
+go run ./cmd/apikey -data ./data -name my-local-client -revoke
+```
+
+Start Site Observatory again (`go run ./cmd/server`). Test the API in
+Git Bash without writing the secret to your terminal history:
+
+```bash
+read -rsp "API key: " SO_API_KEY; echo
+curl -fsS -H "Authorization: Bearer ${SO_API_KEY}" http://127.0.0.1:8080/api/v1/summary
+unset SO_API_KEY
+```
+
+REST v1 endpoints:
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/api/v1/summary` | Overall status and open incident count |
+| GET | `/api/v1/monitors` | Monitored sites and last check |
+| GET | `/api/v1/monitors/{id}` | Health, SSL, DNS, domain, sitemap, robots, page audit and recent checks |
+| GET | `/api/v1/incidents?monitor_id=1&limit=25` | Recent incidents, optionally one site |
+| GET | `/api/v1/domains` | Registered domain expiry dates |
+| GET | `/api/v1/monitors/{id}/seo-issues?limit=25` | Current page HTTP / SEO findings |
+
+The optional `limit` parameter accepts values from 1 to 100. The
+`/api/v1/` endpoints return JSON and no-store headers. HTTP POST and
+other write methods are rejected. Browser sessions cannot authenticate
+these endpoints. Credentials are never written into response bodies.
+
+**Deployment security:** Keep `APP_ADDR=127.0.0.1:8080` for local
+development. Before exposing REST to a network, configure a proper
+TLS-terminating reverse proxy, firewall/rate limiting and secret
+management. Do not send Bearer keys over unencrypted remote HTTP.
+
+## MCP stdio v0.8
+
+The MCP server is a **separate local process** using stdin/stdout
+(newline-delimited JSON-RPC), not a publicly accessible HTTP endpoint.
+It reads the same SQLite DB and shares exactly the same read-only
+service operations as REST v1.
+
+Launch from the project root:
+
+```bash
+go run ./cmd/mcp -data ./data
+```
+
+An MCP client may instead execute the locally built `cmd/mcp` binary
+with working directory set to the repository root. The server supports
+the `2025-11-25` MCP initialize lifecycle, `tools/list`, `tools/call`
+and `ping`. Its six tools are:
+
+- `get_summary`
+- `list_monitors`
+- `get_monitor_status` (requires `monitor_id`)
+- `list_incidents` (optional `monitor_id`, `limit`)
+- `get_seo_issues` (requires `monitor_id`, optional `limit`)
+- `get_domain_expiry`
+
+The stdio MCP endpoint is intended for **trusted local clients**,
+because it has direct access to the local database file. Protect the
+data directory with OS permissions and do not configure this command
+in untrusted agents. Never forward its stdio transport to the public
+internet. This release does not ship a remote MCP HTTP endpoint or
+agent write tools.
