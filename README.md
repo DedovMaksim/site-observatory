@@ -4,7 +4,7 @@
 
 Site Observatory is a lightweight web application for monitoring the availability and technical health of websites. It combines uptime checks, incident history, TLS/DNS/domain diagnostics, sitemap and robots.txt monitoring, and an optional page-level SEO audit. A read-only REST API and a local MCP server let external tools and AI assistants analyze the same monitoring data.
 
-**Status:** v0.8 **Beta** · Go 1.27 · SQLite · server-rendered web UI · light/dark theme · single administrator
+**Status:** v0.9.1 **Beta** · Go 1.27 · SQLite · server-rendered web UI · light/dark theme · single administrator
 
 **Author:** [Maksim Dedov](https://maksimdedov.ru/) · [GitHub](https://github.com/DedovMaksim)
 
@@ -203,13 +203,13 @@ go build ./cmd/mcp
 
 GitHub Actions runs static checks, race-enabled tests and cross-builds for Windows AMD64, Linux AMD64 and Linux ARM64. **Passing CI does not replace production smoke tests.**
 
-The project is currently an evolving **v0.8 Beta**. Future work may include hardened VDS deployment, backup/restore validation, richer audit reporting and additional monitoring integrations.
+The project is currently an evolving **v0.9.1 Beta**. Future work may include hardened VDS deployment, backup/restore validation, richer audit reporting and additional monitoring integrations.
 
 ## Author and licensing
 
 Developed by **[Maksim Dedov](https://maksimdedov.ru/)**. Source repository: [DedovMaksim/site-observatory](https://github.com/DedovMaksim/site-observatory).
 
-**License:** not selected. The repository is currently private; no open-source licensing rights should be assumed. A LICENSE file and public release policy can be added separately if the project is published.
+**License:** not selected. The repository is public; no open-source licensing rights should be assumed. A LICENSE file and public release policy can be added separately if the project is published.
 
 
 ## Telegram HTTPS Relay (optional)
