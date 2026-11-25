@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"example.com/site-observatory/internal/api"
 	"example.com/site-observatory/internal/auth"
 	"example.com/site-observatory/internal/monitor"
 	"example.com/site-observatory/internal/notify"
@@ -104,6 +105,7 @@ func securityHeaders(next http.Handler) http.Handler {
 }
 func (s *Server) routes() {
 	s.mux.Handle("GET /static/", http.FileServerFS(assets))
+	s.mux.Handle("/api/v1/",api.New(s.DB))
 	s.mux.HandleFunc("GET /login", s.loginPage)
 	s.mux.HandleFunc("POST /login", s.login)
 	s.mux.HandleFunc("GET /", s.require(s.dashboard))
