@@ -3,6 +3,7 @@ package pageauditwatch
 import (
  "context"
  "log"
+ "strings"
  "time"
 
  "example.com/site-observatory/internal/pageaudit"
@@ -34,6 +35,7 @@ func(r *Runner) tick(ctx context.Context){
    result.Error=e.Error()
    if len(result.Error)>400{result.Error=result.Error[:400]}
   }else{
+   result.IsHTML=strings.Contains(strings.ToLower(headers.Get("Content-Type")),"text/html")
    meta:=pageaudit.ParseSEO(body,headers)
    result.Title=meta.Title
    result.Canonical=meta.Canonical
