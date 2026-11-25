@@ -39,6 +39,7 @@ type tool struct{
  Annotations map[string]any `json:"annotations"`
 }
 func schema(properties map[string]any,required ...string)any{
+ if required==nil {required=[]string{}}
  return map[string]any{"type":"object","properties":properties,"required":required,"additionalProperties":false}
 }
 func idProperty()any{return map[string]any{"type":"integer","minimum":1,"description":"Existing monitor ID"}}
