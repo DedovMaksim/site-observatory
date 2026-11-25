@@ -170,3 +170,39 @@ the only source of renewal reminders.
 ### WHOIS fallback for .ru / .рф
 
 When an RDAP lookup fails for a .ru or .рф domain, Site Observatory queries the fixed official TCI WHOIS endpoint over TCP port 43 and extracts `paid-till`. The same hourly scheduler checks for previously unsupported RDAP entries so older .ru monitors get another lookup shortly after upgrading. Subsequent successful lookups run approximately once a day. Responses are capped at 64 KiB and TCP requests have timeouts. WHOIS does not replace manual expiry dates, which take priority. If your network blocks port 43, manual dates remain available.
+
+
+## Sitemap monitoring (v0.5 beta)
+
+Navigate to `/sitemaps` and opt in per monitor. Disabled by default to
+avoid extra traffic to websites. Enter the sitemap URL (e.g. `/sitemap.xml`,
+`/sitemap_index.xml`, or `/wp-sitemap.xml`). Blank uses
+`<monitored-origin>/sitemap.xml`.
+
+A successful daily scan reads sitemap XML and sitemap indexes, recursively
+follows same-host nested sitemap links, records the number of XML files and
+unique page URLs, and compares the current URL list with the preceding
+successful scan. First scan establishes a **baseline** (zero changes).
+Later scans report added URLs and URLs removed from the sitemap. A removed
+URL does **not** necessarily indicate a deleted webpage.
+
+A failure leaves the prior successful URL snapshot intact and shows the
+error in the interface. Results are available on `/sitemaps`, the site
+detail page, and `/sitemaps/<id>/changes`.
+
+**Limits in v0.5:** 60 sitemap XML files, 20,000 unique URLs, 12 MiB
+uncompressed content per XML file, HTTPS/HTTP only, no cross-host sitemap
+links or page URLs. Larger or unusual sitemaps receive an explicit error;
+no partial snapshot is written. Files may be .gz compressed. Sitemap
+checking is once daily, with newly enabled monitors picked up on the
+next minute. This release **does not crawl each page**, perform per-page
+SEO audits, or send sitemap alerts to Telegram.
+
+Security: sitemap URLs must stay on the monitored hostname, outbound
+connections to private/loopback IPs are blocked, DNS is re-validated before
+each connection, and redirects are restricted to the same hostname.
+The app stores URL strings and a bounded 500-event change history per
+monitor rather than full page HTML.
+
+Back up `data/` before first startup with this version. Local testing is
+recommended before deploying to a VDS.
