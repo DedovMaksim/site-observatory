@@ -22,6 +22,13 @@ type PageAuditResult struct{
  URL,CheckedAt,Title,Canonical,Robots,Error string
  Status int
  Noindex bool
+ MissingTitle,MissingCanonical,CanonicalMismatch,HTTPProblem bool
+}
+func decoratePageAudit(v *PageAuditResult){
+ v.MissingTitle=strings.TrimSpace(v.Title)==""
+ v.MissingCanonical=strings.TrimSpace(v.Canonical)==""
+ v.CanonicalMismatch=!v.MissingCanonical && !strings.EqualFold(strings.TrimRight(v.Canonical,"/"),strings.TrimRight(v.URL,"/"))
+ v.HTTPProblem=v.Status==0||v.Status>=400||v.Error!=""
 }
 type PageAuditEvent struct{
  CheckedAt,URL,Kind,Detail string
@@ -213,6 +220,7 @@ func (d *DB) PageAuditFiltered(filter PageAuditFilter)(PageAuditPage,error){
   var v PageAuditResult;var noindex int
   if err=rows.Scan(&v.URL,&v.CheckedAt,&v.Status,&v.Title,&v.Canonical,&v.Robots,&noindex,&v.Error);err!=nil{return PageAuditPage{},err}
   v.Noindex=noindex!=0
+  decoratePageAudit(&v)
   result.Results=append(result.Results,v)
  }
  return result,rows.Err()
