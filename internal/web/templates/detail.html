@@ -83,6 +83,14 @@
 {{if .Sitemap.Error}}<p class="alert break-text">{{.Sitemap.Error}}</p>{{end}}
 {{else}}<p class="muted">Мониторинг sitemap отключён. <a href="/sitemaps">Включить</a></p>{{end}}
 </section>
+<section class="card" aria-labelledby="robots-title"><div class="cardhead"><h2 id="robots-title">Robots.txt</h2><a href="/robots">Настройки</a></div>
+{{if .Robots.Enabled}}
+<p>Статус: {{if eq .Robots.Status "OK"}}<span class="up">OK</span>{{else if eq .Robots.Status "ERROR"}}<span class="down">ERROR</span>{{else}}<span class="muted">{{.Robots.Status}}</span>{{end}}</p>
+{{if .Robots.RootBlocks}}<p class="down">Внимание: Disallow: / для {{.Robots.RootBlocks}}</p>{{end}}
+<p class="muted">Последняя проверка: {{if .Robots.LastChecked}}{{.Robots.LastChecked}} UTC{{else}}Ещё не выполнялась{{end}}</p>
+<a href="/robots/{{.Monitor.ID}}/history">История robots.txt</a>
+{{if .Robots.LastError}}<p class="alert">{{.Robots.LastError}}</p>{{end}}
+{{else}}<p class="muted">Мониторинг robots.txt отключён. <a href="/robots">Включить</a></p>{{end}}</section>
 <section class="card monitor-history" aria-labelledby="history-title">
   <div class="cardhead"><h2 id="history-title">История проверок</h2><span class="muted">Последние 100</span></div>
   <div class="bars" aria-label="Лента последних проверок">
